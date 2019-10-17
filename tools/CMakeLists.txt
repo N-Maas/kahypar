@@ -50,6 +50,9 @@ set_property(TARGET DegreePinDistribution PROPERTY CXX_STANDARD_REQUIRED ON)
 add_executable(ComputeNeighborHoodSizes compute_neighborhood_sizes.cc)
 set_property(TARGET ComputeNeighborHoodSizes PROPERTY CXX_STANDARD 14)
 set_property(TARGET ComputeNeighborHoodSizes PROPERTY CXX_STANDARD_REQUIRED ON)
+add_executable(BalanceConstraint approximate_balance_constraint.cc)
+set_property(TARGET BalanceConstraint PROPERTY CXX_STANDARD 14)
+set_property(TARGET BalanceConstraint PROPERTY CXX_STANDARD_REQUIRED ON)
 
 
 
