@@ -23,12 +23,44 @@
 #include <sstream>
 #include <string>
 #include <map>
+#include <queue>
 
 #include "kahypar/definitions.h"
 #include "kahypar/io/hypergraph_io.h"
 #include "kahypar/macros.h"
 
 using namespace kahypar;
+
+typedef std::priority_queue<HypernodeWeight, std::vector<HypernodeWeight>, std::greater<HypernodeWeight>> BinQueue;
+
+HypernodeWeight calculate_worst_fit_decreasing_bin_size(const std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>& weight_distribution, HypernodeID k) {
+  // init priority queue of bins with zeros
+  BinQueue bins{ std::greater<HypernodeWeight>(), std::vector<HypernodeWeight>(k) };
+
+  for(const std::pair<HypernodeWeight, size_t>& weight_entry : weight_distribution) {
+    HypernodeWeight node_weight = weight_entry.first;
+    size_t num_nodes = weight_entry.second;
+    ASSERT(bins.size() == k);
+    ASSERT(num_nodes > 0);
+
+    if(node_weight == 0) {
+      continue;
+    }
+
+    for(size_t i = 0; i < num_nodes; ++i) {
+      // for every node, insert the node to the smallest bin and update the queue
+      HypernodeWeight bin_weight = bins.top();
+      bins.pop();
+      bins.push(bin_weight + node_weight);
+    }
+  }
+
+  // the result is the biggest bin, e.g. the last element in the queue
+  while(bins.size() > 1) {
+    bins.pop();
+  }
+  return bins.top();
+}
 
 int main(int argc, char* argv[]) {
   if (argc != 4) {
@@ -67,8 +99,14 @@ int main(int argc, char* argv[]) {
   for(const auto& p : weight_distribution) {
     std::cout << p.first << " - " << p.second << std::endl;
   }
+
   std::cout << "number of nodes: " << hypergraph.currentNumNodes() << std::endl;
   std::cout << "maximum node weight: " << max_weight << std::endl;
+
+  HypernodeWeight calculated_border = calculate_worst_fit_decreasing_bin_size(weight_distribution, num_blocks);
+  std::cout << "total weight: " << total_weight << std::endl;
+  std::cout << "average block weight: " << weight_per_block << std::endl;
+  std::cout << "calculated border for block weight: " << calculated_border << std::endl;
 
   std::cout << " ... done!" << std::endl;
   return 0;
