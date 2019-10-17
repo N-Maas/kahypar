@@ -25,6 +25,8 @@
 #include <map>
 #include <queue>
 
+#include <boost/range/adaptor/reversed.hpp>
+
 #include "kahypar/definitions.h"
 #include "kahypar/io/hypergraph_io.h"
 #include "kahypar/macros.h"
@@ -60,6 +62,25 @@ HypernodeWeight calculate_worst_fit_decreasing_bin_size(const std::map<Hypernode
     bins.pop();
   }
   return bins.top();
+}
+
+// max{a - 1 / (k - 1) * sum_{a_i < a}(a_i)}
+HypernodeWeight calculate_dominating_element_heuristic(const std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>& weight_distribution, HypernodeID k) {
+  HypernodeWeight lower_sum = 0;
+  HypernodeWeight maximum = std::numeric_limits<HypernodeWeight>::min();
+
+  for(const std::pair<HypernodeWeight, size_t>& weight_entry : boost::adaptors::reverse(weight_distribution)) {
+    HypernodeWeight node_weight = weight_entry.first;
+    size_t num_nodes = weight_entry.second;
+
+    // TODO: rounding?
+    HypernodeWeight value = node_weight - lower_sum / (k - 1);
+    maximum = std::max(maximum, value);
+
+    lower_sum += node_weight * num_nodes;
+  }
+
+  return maximum;
 }
 
 int main(int argc, char* argv[]) {
@@ -104,9 +125,11 @@ int main(int argc, char* argv[]) {
   std::cout << "maximum node weight: " << max_weight << std::endl;
 
   HypernodeWeight calculated_border = calculate_worst_fit_decreasing_bin_size(weight_distribution, num_blocks);
+  HypernodeWeight de_heuristic = calculate_dominating_element_heuristic(weight_distribution, num_blocks);
   std::cout << "total weight: " << total_weight << std::endl;
   std::cout << "average block weight: " << weight_per_block << std::endl;
   std::cout << "calculated border for block weight: " << calculated_border << std::endl;
+  std::cout << "dominating element heuristic: " << de_heuristic << std::endl;
 
   std::cout << " ... done!" << std::endl;
   return 0;
