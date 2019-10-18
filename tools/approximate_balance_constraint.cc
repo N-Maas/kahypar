@@ -20,11 +20,12 @@
 
 #include <fstream>
 #include <iostream>
-#include <sstream>
-#include <string>
 #include <map>
 #include <queue>
+#include <sstream>
+#include <string>
 
+#include <boost/integer.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 
 #include "kahypar/definitions.h"
@@ -33,24 +34,34 @@
 
 using namespace kahypar;
 
-typedef std::priority_queue<HypernodeWeight, std::vector<HypernodeWeight>, std::greater<HypernodeWeight>> BinQueue;
+typedef std::priority_queue<HypernodeWeight, std::vector<HypernodeWeight>,
+                            std::greater<HypernodeWeight>>
+    BinQueue;
+typedef boost::int_t<sizeof(HypernodeWeight) * CHAR_BIT * 2>::least
+    LongHypernodeWeight;
 
-HypernodeWeight calculate_worst_fit_decreasing_bin_size(const std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>& weight_distribution, HypernodeID k) {
+HypernodeWeight calculate_worst_fit_decreasing_bin_size(
+    const std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>
+        &weight_distribution,
+    HypernodeID k) {
   // init priority queue of bins with zeros
-  BinQueue bins{ std::greater<HypernodeWeight>(), std::vector<HypernodeWeight>(k) };
+  BinQueue bins{std::greater<HypernodeWeight>(),
+                std::vector<HypernodeWeight>(k)};
 
-  for(const std::pair<HypernodeWeight, size_t>& weight_entry : weight_distribution) {
+  for (const std::pair<HypernodeWeight, size_t> &weight_entry :
+       weight_distribution) {
     HypernodeWeight node_weight = weight_entry.first;
     size_t num_nodes = weight_entry.second;
     ASSERT(bins.size() == k);
     ASSERT(num_nodes > 0);
 
-    if(node_weight == 0) {
+    if (node_weight == 0) {
       continue;
     }
 
-    for(size_t i = 0; i < num_nodes; ++i) {
-      // for every node, insert the node to the smallest bin and update the queue
+    for (size_t i = 0; i < num_nodes; ++i) {
+      // for every node, insert the node to the smallest bin and update the
+      // queue
       HypernodeWeight bin_weight = bins.top();
       bins.pop();
       bins.push(bin_weight + node_weight);
@@ -58,79 +69,119 @@ HypernodeWeight calculate_worst_fit_decreasing_bin_size(const std::map<Hypernode
   }
 
   // the result is the biggest bin, e.g. the last element in the queue
-  while(bins.size() > 1) {
+  while (bins.size() > 1) {
     bins.pop();
   }
   return bins.top();
 }
 
 // max{a - 1 / (k - 1) * sum_{a_i < a}(a_i)}
-HypernodeWeight calculate_dominating_element_heuristic(const std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>& weight_distribution, HypernodeID k) {
+template <class RatingFunction>
+HypernodeWeight calculate_dominating_element_heuristic(
+    RatingFunction rating,
+    const std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>
+        &weight_distribution,
+    HypernodeWeight total_weight, HypernodeID k) {
   HypernodeWeight lower_sum = 0;
   HypernodeWeight maximum = std::numeric_limits<HypernodeWeight>::min();
 
-  for(const std::pair<HypernodeWeight, size_t>& weight_entry : boost::adaptors::reverse(weight_distribution)) {
+  for (const std::pair<HypernodeWeight, size_t> &weight_entry :
+       boost::adaptors::reverse(weight_distribution)) {
     HypernodeWeight node_weight = weight_entry.first;
     size_t num_nodes = weight_entry.second;
 
-    // TODO: rounding?
-    HypernodeWeight value = node_weight - lower_sum / (k - 1);
-    maximum = std::max(maximum, value);
-
+    maximum =
+        std::max(maximum, rating(node_weight, lower_sum, total_weight, k));
     lower_sum += node_weight * num_nodes;
   }
 
   return maximum;
 }
 
-int main(int argc, char* argv[]) {
-  if (argc != 4) {
-    std::cout << "Missing argument" << std::endl;
-    std::cout << "Usage: BalanceConstraint -k <# blocks> <.hgr>" << std::endl;
-    exit(0);
-  }
-  std::string hgr_filename;
-  HypernodeID num_blocks = 0;
-  bool is_arg_num_blocks = false;
-  for(int i = 1; i < argc; ++i) {
-    if(is_arg_num_blocks) {
-      num_blocks = std::stoul(argv[i]);
-      is_arg_num_blocks = false;
-    } else if(std::string(argv[i]) == std::string("-k")) {
-      is_arg_num_blocks = true;
-    } else {
-      hgr_filename = std::string(argv[i]);
-    }
-  }
+void eval_file(std::string hgr_filename, HypernodeID num_blocks) {
+  std::cout << "> " << hgr_filename << " <" << std::endl;
 
   Hypergraph hypergraph(io::createHypergraphFromFile(hgr_filename, num_blocks));
+  auto simple_rating = [](HypernodeWeight node_weight,
+                          HypernodeWeight lower_sum,
+                          HypernodeWeight total_weight, HypernodeID k) {
+    HypernodeWeight max = node_weight - 2 * lower_sum / HypernodeWeight(k);
+    return (max + 1) / 2;
+  };
+  // LongHypernodeWeight required to avoid overflow
+  auto refined_rating = [](LongHypernodeWeight node_weight,
+                           LongHypernodeWeight lower_sum,
+                           LongHypernodeWeight total_weight, HypernodeID k) {
+    // TODO rounding?
+    HypernodeWeight max = HypernodeWeight(
+        node_weight -
+        (2 * total_weight / LongHypernodeWeight(k) - node_weight) * lower_sum /
+            (total_weight - node_weight));
+    return (max + 1) / 2;
+  };
 
-  std::map<HypernodeWeight, size_t, std::greater<HypernodeID>> weight_distribution;
+  std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>
+      weight_distribution;
 
-  for (const auto hn : hypergraph.nodes()){
+  for (const auto hn : hypergraph.nodes()) {
     ++weight_distribution[hypergraph.nodeWeight(hn)];
   }
 
   HypernodeWeight total_weight = hypergraph.totalWeight();
-  HypernodeWeight weight_per_block = (total_weight + num_blocks - 1) / num_blocks;
+  HypernodeWeight weight_per_block =
+      (total_weight + num_blocks - 1) / num_blocks;
   HypernodeWeight max_weight = weight_distribution.cbegin()->first;
   ASSERT(max_weight == hypergraph.weightOfHeaviestNode());
 
-  std::cout << "printing distribution:" << std::endl;
-  for(const auto& p : weight_distribution) {
-    std::cout << p.first << " - " << p.second << std::endl;
+  std::cout << "number of nodes:                    "
+            << hypergraph.currentNumNodes() << std::endl;
+  std::cout << "maximum node weight:                " << max_weight
+            << std::endl;
+  std::cout << "total weight:                       " << total_weight
+            << std::endl;
+  std::cout << "average block weight:               " << weight_per_block
+            << std::endl;
+  std::cout << "---------- ------------ ---------- ----------" << std::endl;
+
+  HypernodeWeight calculated_border =
+      calculate_worst_fit_decreasing_bin_size(weight_distribution, num_blocks);
+  HypernodeWeight simple_heuristic = calculate_dominating_element_heuristic(
+      simple_rating, weight_distribution, total_weight, num_blocks);
+  HypernodeWeight refined_heuristic = calculate_dominating_element_heuristic(
+      refined_rating, weight_distribution, total_weight, num_blocks);
+
+  std::cout << "calculated border for block weight: " << calculated_border
+            << std::endl;
+  std::cout << "simple heuristic:                   " << simple_heuristic
+            << std::endl;
+  std::cout << "refined heuristic:                  " << refined_heuristic
+            << std::endl;
+  std::cout << std::endl;
+}
+
+int main(int argc, char *argv[]) {
+  if (argc < 4) {
+    std::cout << "Missing argument" << std::endl;
+    std::cout << "Usage: BalanceConstraint -k <# blocks> <.hgr>" << std::endl;
+    exit(0);
+  }
+  std::vector<std::string> hgr_filenames;
+  HypernodeID num_blocks = 0;
+  bool is_arg_num_blocks = false;
+  for (int i = 1; i < argc; ++i) {
+    if (is_arg_num_blocks) {
+      num_blocks = std::stoul(argv[i]);
+      is_arg_num_blocks = false;
+    } else if (std::string(argv[i]) == std::string("-k")) {
+      is_arg_num_blocks = true;
+    } else {
+      hgr_filenames.push_back(std::string(argv[i]));
+    }
   }
 
-  std::cout << "number of nodes: " << hypergraph.currentNumNodes() << std::endl;
-  std::cout << "maximum node weight: " << max_weight << std::endl;
+  for(const auto& file : hgr_filenames) {
+    eval_file(file, num_blocks);
+  }
 
-  HypernodeWeight calculated_border = calculate_worst_fit_decreasing_bin_size(weight_distribution, num_blocks);
-  HypernodeWeight de_heuristic = calculate_dominating_element_heuristic(weight_distribution, num_blocks);
-  std::cout << "total weight: " << total_weight << std::endl;
-  std::cout << "average block weight: " << weight_per_block << std::endl;
-  std::cout << "calculated border for block weight: " << calculated_border << std::endl;
-  std::cout << "dominating element heuristic: " << de_heuristic << std::endl;
-
-  std::cout << " ... done!" << std::endl;
   return 0;
 }
