@@ -53,6 +53,9 @@ set_property(TARGET ComputeNeighborHoodSizes PROPERTY CXX_STANDARD_REQUIRED ON)
 add_executable(BalanceConstraint approximate_balance_constraint.cc)
 set_property(TARGET BalanceConstraint PROPERTY CXX_STANDARD 14)
 set_property(TARGET BalanceConstraint PROPERTY CXX_STANDARD_REQUIRED ON)
+add_executable(BookshelfToWeightedHgr bookshelf_to_hgr_weighted_converter.cc)
+set_property(TARGET BookshelfToWeightedHgr PROPERTY CXX_STANDARD 14)
+set_property(TARGET BookshelfToWeightedHgr PROPERTY CXX_STANDARD_REQUIRED ON)
 
 
 
