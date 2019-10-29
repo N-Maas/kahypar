@@ -123,14 +123,25 @@ void parseCoordinateMatrixEntries(std::ifstream& file, MatrixInfo& info,
 }
 
 void writeMatrixInHgrFormat(const MatrixInfo& info, const MatrixData& matrix_data,
-                            const std::string& filename) {
+                            const std::string& filename, bool weighted) {
   std::ofstream out_stream(filename.c_str());
-  out_stream << info.num_rows << " " << info.num_columns << std::endl;
+  out_stream << info.num_rows << " " << info.num_columns << (weighted ? " 10" : "") << std::endl;
+
+  std::vector<int> node_weights;
+  if(weighted) {
+    node_weights.resize(info.num_columns, 0);
+  }
+
   for (const auto& hyperedge : matrix_data) {
     if (hyperedge.size() != 0) {
       for (auto pin_iter = hyperedge.begin(); pin_iter != hyperedge.end(); ++pin_iter) {
+        int id = *pin_iter;
         // ids start at 1
-        out_stream << *pin_iter + 1;
+        out_stream << id + 1;
+        if(weighted) {
+          ALWAYS_ASSERT(id < node_weights.size(), "Invalid node id: " << V(id));
+          ++node_weights[id];
+        }
         if (pin_iter + 1 != hyperedge.end()) {
           out_stream << " ";
         }
@@ -138,12 +149,18 @@ void writeMatrixInHgrFormat(const MatrixInfo& info, const MatrixData& matrix_dat
       out_stream << std::endl;
     }
   }
+
+  if(weighted)  {
+    for (auto weight : node_weights) {
+      out_stream << weight << std::endl;
+    }
+  }
   out_stream.close();
 }
 
-void convertMtxToHgr(const std::string& matrix_filename, const std::string& hypergraph_filename) {
+void convertMtxToHgr(const std::string& matrix_filename, const std::string& hypergraph_filename, bool weighted) {
   Matrix matrix = readMatrix(matrix_filename);
-  writeMatrixInHgrFormat(matrix.info, matrix.data, hypergraph_filename);
+  writeMatrixInHgrFormat(matrix.info, matrix.data, hypergraph_filename, weighted);
 }
 
 void convertMtxToHgrForNonsymmetricParallelSPM(const std::string& matrix_filename,

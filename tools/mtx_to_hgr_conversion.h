@@ -52,9 +52,9 @@ void parseDimensionInformation(std::ifstream& file, MatrixInfo& info);
 void parseMatrixEntries(std::ifstream& file, MatrixInfo& info, MatrixData& matrix_data);
 void parseCoordinateMatrixEntries(std::ifstream& file, MatrixInfo& info, MatrixData& matrix_data);
 void writeMatrixInHgrFormat(const MatrixInfo& info, const MatrixData& matrix_data,
-                            const std::string& filename);
+                            const std::string& filename, bool weighted=false);
 void convertMtxToHgr(const std::string& matrix_filename,
-                     const std::string& hypergraph_filename);
+                     const std::string& hypergraph_filename, bool weighted=false);
 void convertMtxToHgrForNonsymmetricParallelSPM(const std::string& matrix_filename,
                                                const std::string& hypergraph_filename);
 
