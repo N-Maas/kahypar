@@ -65,6 +65,9 @@ set_property(TARGET BookshelfToWeightedHgr PROPERTY CXX_STANDARD_REQUIRED ON)
 add_executable(MtxToWeightedHgr mtx_to_weighted_hgr_converter.cc mtx_to_hgr_conversion.cc)
 set_property(TARGET MtxToWeightedHgr PROPERTY CXX_STANDARD 14)
 set_property(TARGET MtxToWeightedHgr PROPERTY CXX_STANDARD_REQUIRED ON)
+add_executable(ArtificialNodeWeights artificial_node_weights_creator.cc artificial_node_weights.cc)
+set_property(TARGET ArtificialNodeWeights PROPERTY CXX_STANDARD 14)
+set_property(TARGET ArtificialNodeWeights PROPERTY CXX_STANDARD_REQUIRED ON)
 
 
 
