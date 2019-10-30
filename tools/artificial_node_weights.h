@@ -23,15 +23,15 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <cstdint>
 
-#include "kahypar/definitions.h"
+// TODO types
+// #include "kahypar/definitions.h"
 
 namespace nodeweights {
 
-kahypar::HypernodeID parseNumNodes(const std::string& hgr_filename);
-std::vector<kahypar::HypernodeWeight> createWeights(kahypar::HypernodeID num_nodes,
-  kahypar::HypernodeID max_k, int imbalance_factor);
-std::vector<kahypar::HypernodeWeight> createBigWeights(kahypar::HypernodeID num_heavy_nodes,
-  kahypar::HypernodeWeight lower_total_weight, kahypar::HypernodeID k, int factor);
-void appendWeightsToHgr(const std::string& hgr_filename, const std::vector<kahypar::HypernodeWeight>& weights);
+uint32_t parseNumNodes(const std::string& hgr_filename);
+std::vector<int32_t> createWeights(uint32_t num_nodes, uint32_t max_k, int min_imbalance_factor, int max_imbalance_factor);
+std::vector<int32_t> createBigWeights(uint32_t num_heavy_nodes, int32_t lower_total_weight, uint32_t k, int factor);
+void appendWeightsToHgr(const std::string& hgr_filename, const std::string& out_filename, const std::vector<int32_t>& weights);
 }  // namespace nodeweights

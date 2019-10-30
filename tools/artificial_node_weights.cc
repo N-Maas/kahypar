@@ -20,9 +20,11 @@
 
 #include <random>
 #include <sstream>
+#include <algorithm>
 
 #include "kahypar/macros.h"
 #include "tools/artificial_node_weights.h"
+#include "kahypar/definitions.h"
 
 using namespace kahypar;
 
@@ -42,7 +44,7 @@ HypernodeID parseNumNodes(const std::string& hgr_filename) {
   return std::stoul(num_nodes);
 }
 
-std::vector<HypernodeWeight> createWeights(HypernodeID num_nodes, HypernodeID max_k, int imbalance_factor) {
+std::vector<HypernodeWeight> createWeights(HypernodeID num_nodes, HypernodeID max_k, int min_imbalance_factor, int max_imbalance_factor) {
   std::random_device rd;
   std::mt19937 gen(rd());
 
@@ -52,11 +54,13 @@ std::vector<HypernodeWeight> createWeights(HypernodeID num_nodes, HypernodeID ma
   HypernodeID num_heavy_nodes = std::uniform_int_distribution<>{ (3 * max_k + 1) / 2, 3 * max_k }(gen);
   HypernodeID num_light_nodes = num_nodes - num_heavy_nodes;
   // TODO: random weights?
-  weights.resize(1, num_light_nodes);
+  weights.resize(num_light_nodes, 1);
 
+  int imbalance_factor = std::uniform_int_distribution<>{ min_imbalance_factor, max_imbalance_factor }(gen);
   std::vector<HypernodeWeight> big_weights = createBigWeights(num_heavy_nodes, num_light_nodes, max_k, imbalance_factor);
-  weights.insert(weights.end(), big_weights.cbegin(), big_weights.cend());
+  std::for_each(big_weights.cbegin(), big_weights.cend(), [&](auto w) {weights.push_back(w);});
 
+  std::random_shuffle(weights.begin(), weights.end());
   return std::move(weights);
 }
 
@@ -78,14 +82,29 @@ std::vector<HypernodeWeight> createBigWeights(HypernodeID num_heavy_nodes, Hyper
   return std::move(weights);
 }
 
-void appendWeightsToHgr(const std::string& hgr_filename, const std::vector<kahypar::HypernodeWeight>& weights) {
-  std::ofstream output(hgr_filename, std::ios::app);
+void appendWeightsToHgr(const std::string& hgr_filename, const std::string& out_filename, const std::vector<kahypar::HypernodeWeight>& weights) {
+  std::ifstream input(hgr_filename);
+  std::ofstream output(out_filename);
+
+  // change 1. line to weighted format
+  std::string line;
+  std::getline(input, line);
+  std::istringstream sstream(line);
+  std::string num_edges, num_nodes;
+  sstream >> num_edges >> num_nodes;
+  output << num_edges << " " << num_nodes << " 10 " << std::endl;
+  output << input.rdbuf();
+
+  input.close();
+  output.close();
+
+  std::ofstream append_stream(out_filename, std::ios::app);
 
   for (const HypernodeWeight &w : weights) {
-    output << w << std::endl;
+    append_stream << w << std::endl;
   }
 
-  output.close();
+  append_stream.close();
 }
 
 }  // namespace nodeweights

@@ -19,10 +19,10 @@
  ******************************************************************************/
 
 #include <random>
+#include <iostream>
 
 #include "tools/artificial_node_weights.h"
 
-using namespace kahypar;
 using namespace nodeweights;
 
 int main(int argc, char *argv[]) {
@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
   std::vector<std::string> hgr_filenames;
-  HypernodeID num_blocks = 0;
+  uint32_t num_blocks = 0;
   int max_imbalance_factor = 0;
 
   bool is_arg_num_blocks = false;
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
       num_blocks = std::stoul(argv[i]);
       is_arg_num_blocks = false;
     } else if (is_arg_factor) {
-      num_blocks = std::stoul(argv[i]);
+      max_imbalance_factor = std::stoul(argv[i]);
       is_arg_factor = false;
     } else if (std::string(argv[i]) == std::string("-k")) {
       is_arg_num_blocks = true;
@@ -56,13 +56,10 @@ int main(int argc, char *argv[]) {
   for(const auto& file : hgr_filenames) {
     std::string new_file = file.substr(0, file.size() - 4) + ".weighted.hgr";
 
-    HypernodeID num_nodes = parseNumNodes(file);
-    std::vector<HypernodeWeight> weights = createWeights(num_nodes, num_blocks, max_imbalance_factor);
+    uint32_t num_nodes = parseNumNodes(file);
+    std::vector<int32_t> weights = createWeights(num_nodes, num_blocks, (max_imbalance_factor + 2) / 3, max_imbalance_factor);
 
-    std::ifstream src(file, std::ios::binary);
-    std::ofstream dst(new_file, std::ios::binary);
-    dst << src.rdbuf();
-    appendWeightsToHgr(new_file, weights);
+    appendWeightsToHgr(file, new_file, weights);
   }
 
   return 0;
