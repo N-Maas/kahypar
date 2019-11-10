@@ -22,13 +22,20 @@
 #include <sstream>
 #include <algorithm>
 
+#include <boost/integer.hpp>
+
 #include "kahypar/macros.h"
 #include "tools/artificial_node_weights.h"
 #include "kahypar/definitions.h"
 
 using namespace kahypar;
 
-const int WEIGHT_VARIANCE = 3;
+typedef boost::int_t<sizeof(HypernodeWeight) * CHAR_BIT * 2>::least
+    LongHypernodeWeight;
+typedef boost::uint_t<sizeof(HypernodeID) * CHAR_BIT * 2>::least
+    LongHypernodeID;
+
+const long WEIGHT_VARIANCE = 2;
 
 namespace nodeweights {
 
@@ -51,13 +58,26 @@ std::vector<HypernodeWeight> createWeights(HypernodeID num_nodes, HypernodeID ma
   std::vector<HypernodeWeight> weights;
   weights.reserve(num_nodes);
 
-  HypernodeID num_heavy_nodes = std::uniform_int_distribution<>{ (3 * max_k + 1) / 2, 3 * max_k }(gen);
+  HypernodeID num_heavy_nodes = std::uniform_int_distribution<>{ (6 * max_k + 1) / 5, 2 * max_k }(gen);
   HypernodeID num_light_nodes = num_nodes - num_heavy_nodes;
-  // TODO: random weights?
-  weights.resize(num_light_nodes, 1);
+
+  // Generate small weights with randomized distribution of 1, 3, 5, 17
+  int one_probability = std::uniform_int_distribution<>{ 4, 12 }(gen);
+  int three_probability = std::uniform_int_distribution<>{ 3, 6 }(gen);
+  int five_probability = std::uniform_int_distribution<>{ 2, 5 }(gen);
+  int seventeen_probability = std::uniform_int_distribution<>{ 1, 2 }(gen);
+  std::discrete_distribution<HypernodeWeight> light_weights_distribution{double(one_probability), 0, double(three_probability),
+    0, double(five_probability), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, double(seventeen_probability)};
+  HypernodeWeight total_weight = 0;
+
+  for(HypernodeID i = 0; i < num_light_nodes; ++i) {
+    HypernodeWeight weight = light_weights_distribution(gen);
+    total_weight += weight;
+    weights.push_back(weight);
+  }
 
   int imbalance_factor = std::uniform_int_distribution<>{ min_imbalance_factor, max_imbalance_factor }(gen);
-  std::vector<HypernodeWeight> big_weights = createBigWeights(num_heavy_nodes, num_light_nodes, max_k, imbalance_factor);
+  std::vector<HypernodeWeight> big_weights = createBigWeights(num_heavy_nodes, total_weight, max_k, imbalance_factor);
   std::for_each(big_weights.cbegin(), big_weights.cend(), [&](auto w) {weights.push_back(w);});
 
   std::random_shuffle(weights.begin(), weights.end());
@@ -69,8 +89,8 @@ std::vector<HypernodeWeight> createBigWeights(HypernodeID num_heavy_nodes, Hyper
   std::mt19937 gen(rd());
 
   // magic formula derived from heuristic
-  HypernodeWeight min_weight = factor * ((WEIGHT_VARIANCE + 1) * num_heavy_nodes
-    * lower_total_weight / k - lower_total_weight / (num_heavy_nodes - 1));
+  HypernodeWeight min_weight = long(factor) * ((WEIGHT_VARIANCE + 1) * LongHypernodeID(num_heavy_nodes)
+    * LongHypernodeWeight(lower_total_weight) / LongHypernodeID(k) - LongHypernodeWeight(lower_total_weight)) / (LongHypernodeID(num_heavy_nodes) - 1);
 
   std::uniform_int_distribution<> distribution{ min_weight, WEIGHT_VARIANCE * min_weight };
   std::vector<HypernodeWeight> weights;
