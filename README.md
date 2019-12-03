@@ -1,13 +1,12 @@
 <h1 align="center">KaHyPar - Karlsruhe Hypergraph Partitioning</h1>
-
-
+	
 License|Linux & macOS Build|Windows Build|Fossa|Zenodo
 :--:|:--:|:--:|:--:|:--:
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)|[![Travis-CI Status](https://travis-ci.org/SebastianSchlag/kahypar.svg?branch=master)](https://travis-ci.org/SebastianSchlag/kahypar)|[![Appveyor Status](https://ci.appveyor.com/api/projects/status/s7dagw0l6s8kgmui?svg=true)](https://ci.appveyor.com/project/SebastianSchlag/kahypar-vr7q9)|[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2FSebastianSchlag%2Fkahypar.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2FSebastianSchlag%2Fkahypar?ref=badge_shield)|[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2555059.svg)](https://doi.org/10.5281/zenodo.2555059)
 
-Code Coverage|Code Quality|Coverity Scan|SonarCloud|
-:--:|:--:|:--:|:--:
-[![codecov](https://codecov.io/gh/SebastianSchlag/kahypar/branch/master/graph/badge.svg)](https://codecov.io/gh/SebastianSchlag/kahypar)|[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/SebastianSchlag/kahypar.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/SebastianSchlag/kahypar/context:cpp)|[![Coverity Status](https://scan.coverity.com/projects/11452/badge.svg)](https://scan.coverity.com/projects/11452/badge.svg)|[![Quality Gate](https://sonarcloud.io/api/project_badges/quality_gate?project=KaHyPar)](https://sonarcloud.io/dashboard?id=KaHyPar)
+Code Coverage|Code Quality|Coverity Scan|SonarCloud|Issues
+:--:|:--:|:--:|:--:|:--:
+[![codecov](https://codecov.io/gh/SebastianSchlag/kahypar/branch/master/graph/badge.svg)](https://codecov.io/gh/SebastianSchlag/kahypar)|[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/SebastianSchlag/kahypar.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/SebastianSchlag/kahypar/context:cpp) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/0ba18c5b3b2b4ab1bcc99f7bd9e35eb2)](https://www.codacy.com/manual/SebastianSchlag/kahypar?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=SebastianSchlag/kahypar&amp;utm_campaign=Badge_Grade)|[![Coverity Status](https://scan.coverity.com/projects/11452/badge.svg)](https://scan.coverity.com/projects/11452/badge.svg)|[![Quality Gate](https://sonarcloud.io/api/project_badges/quality_gate?project=KaHyPar)](https://sonarcloud.io/dashboard?id=KaHyPar)|[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/sebastianschlag/kahypar.svg)](http://isitmaintained.com/project/sebastianschlag/kahypar "Average time to resolve an issue")
 
 Table of Contents
 -----------
@@ -23,6 +22,7 @@ Table of Contents
    * [Running KaHyPar](#running-kahypar)
    * [Using the Library Interfaces](#using-the-library-interfaces)
      * [The C-Style Interface](#the-c-style-interface)
+     * [The Python Interface](#the-python-interface)
      * [The Julia Interface](#the-julia-interface)
    * [Bug Reports](#bug-reports)
    * [Licensing](#licensing)
@@ -303,6 +303,49 @@ To remove the library from your system use the provided uninstall target:
 ```sh
 make uninstall-kahypar
 ```
+#### The Python Interface
+To compile the Python interface, do the following:
+
+1. Create a build directory: `mkdir build && cd build`
+2. Run cmake: `cmake .. -DCMAKE_BUILD_TYPE=RELEASE`
+3. Go to libary folder: `cd python`
+4. Compile the libarary: `make`
+5. Copy the libary to your site-packages directory: `cp kahypar.so <path-to-site-packages>`
+
+After that you can use the KaHyPar libary like this:
+
+```py
+import os
+import kahypar as kahypar
+
+num_nodes = 7
+num_nets = 4
+
+hyperedge_indices = [0,2,6,9,12]
+hyperedges = [0,2,0,1,3,4,3,4,6,2,5,6]
+
+node_weights = [1,2,3,4,5,6,7]
+edge_weights = [11,22,33,44]
+
+k=2
+
+hypergraph = kahypar.Hypergraph(num_nodes, num_nets, hyperedge_indices, hyperedges, k, edge_weights, node_weights)
+
+mydir = os.path.dirname(os.path.realpath(__file__))
+
+context = kahypar.Context()
+context.loadINIconfiguration("<path/to/config>/km1_kKaHyPar_dissertation.ini")
+
+context.setK(k)
+context.setEpsilon(0.03)
+
+kahypar.partition(hypergraph, context)
+```
+For more information about the python library functionality, please see: [module.cpp](https://github.com/SebastianSchlag/kahypar/blob/master/python/module.cpp)
+
+We also provide a precompiled version as a [![PyPI version](https://badge.fury.io/py/kahypar.svg)](https://badge.fury.io/py/kahypar) , which can be installed via:
+
+`python3 -m pip install --index-url https://pypi.org/simple/ --no-deps kahypar`
 
 #### The Julia Interface
 Thanks to Jordan Jalving ([@jalving]( https://github.com/jalving)) KaHyPar now also offers a Julia interface,
