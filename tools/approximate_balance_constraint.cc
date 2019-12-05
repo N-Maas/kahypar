@@ -75,6 +75,49 @@ HypernodeWeight calculate_worst_fit_decreasing_bin_size(
   return bins.top();
 }
 
+HypernodeWeight calculate_recursive_wfd_bin_size(
+    const std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>
+        &weight_distribution,
+    HypernodeID k) {
+  if(k == 1) {
+    HypernodeWeight sum = 0;
+    for (const std::pair<HypernodeWeight, size_t> &entry :
+       weight_distribution) {
+         sum += entry.first * entry.second;
+       }
+    return sum;
+  }
+
+  ASSERT(k % 2 == 0);
+  std::map<HypernodeWeight, size_t, std::greater<HypernodeID>> left_part;
+  HypernodeWeight left_sum = 0;
+  std::map<HypernodeWeight, size_t, std::greater<HypernodeID>> right_part;
+  HypernodeWeight right_sum = 0;
+
+  for (const std::pair<HypernodeWeight, size_t> &weight_entry :
+       weight_distribution) {
+    HypernodeWeight node_weight = weight_entry.first;
+    size_t num_nodes = weight_entry.second;
+
+    if (node_weight == 0) {
+      continue;
+    }
+
+    for (size_t i = 0; i < num_nodes; ++i) {
+      // for every node, insert the node to the smaller partition and update the sum
+      if(left_sum <= right_sum) {
+        left_sum += node_weight;
+        left_part[node_weight] += 1;
+      } else {
+        right_sum += node_weight;
+        right_part[node_weight] += 1;
+      }
+    }
+  }
+
+  return std::max(calculate_recursive_wfd_bin_size(left_part, k / 2), calculate_recursive_wfd_bin_size(right_part, k / 2));
+}
+
 // max{a - 1 / (k - 1) * sum_{a_i < a}(a_i)}
 template <class RatingFunction>
 HypernodeWeight calculate_dominating_element_heuristic(
@@ -119,6 +162,12 @@ void eval_file(std::string hgr_filename, HypernodeID num_blocks) {
             (total_weight - node_weight));
     return (max + 1) / 2;
   };
+  // LongHypernodeWeight required to avoid overflow
+  auto pessimistic_rating = [](HypernodeWeight node_weight,
+                          HypernodeWeight lower_sum,
+                          HypernodeWeight total_weight, HypernodeID k) {
+    return node_weight - (node_weight + lower_sum) / HypernodeWeight(k);
+  };
 
   std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>
       weight_distribution;
@@ -145,16 +194,24 @@ void eval_file(std::string hgr_filename, HypernodeID num_blocks) {
 
   HypernodeWeight calculated_border =
       calculate_worst_fit_decreasing_bin_size(weight_distribution, num_blocks);
+  HypernodeWeight recursive_border =
+      calculate_recursive_wfd_bin_size(weight_distribution, num_blocks);
   HypernodeWeight simple_heuristic = calculate_dominating_element_heuristic(
       simple_rating, weight_distribution, total_weight, num_blocks);
   HypernodeWeight refined_heuristic = calculate_dominating_element_heuristic(
       refined_rating, weight_distribution, total_weight, num_blocks);
+  HypernodeWeight pessimistic_heuristic = calculate_dominating_element_heuristic(
+      pessimistic_rating, weight_distribution, total_weight, num_blocks);
 
   std::cout << "calculated border for block weight: " << calculated_border
+            << std::endl;
+  std::cout << "recursive border for block weight:  " << recursive_border
             << std::endl;
   std::cout << "simple heuristic:                   " << simple_heuristic
             << std::endl;
   std::cout << "refined heuristic:                  " << refined_heuristic
+            << std::endl;
+  std::cout << "pessimistic heuristic:              " << pessimistic_heuristic
             << std::endl;
   std::cout << std::endl;
 }
