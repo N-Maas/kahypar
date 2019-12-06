@@ -28,19 +28,21 @@
 namespace kahypar {
 
 namespace bin_packing {
+    using kahypar::ds::BinaryMinHeap;
+
     /**
      * The hypernodes must be sorted in descending order of weight. 
      * The partitions parameter can be used to specify fixed vertices.
      *
      * Attention: the algorithm assumes that any fixed vertices are already partitioned in a balanced way.
      */
-    static inline std::vector<PartitionID> multilevel_packing(const Hypergraph& hg,
+    static inline std::vector<PartitionID> two_level_packing(const Hypergraph& hg,
                                                               const std::vector<HypernodeID>& hypernodes,
                                                               const PartitionID& num_bins,
                                                               const PartitionID& rb_range_k,
                                                               std::vector<PartitionID> partitions = {}) {
-        ASSERT((rb_range_k % num_bins) == 0, "k must be a multiple of the number of bins.");
-        ASSERT(partitions.empty() || (partitions.size() == hypernodes.size()),
+        ALWAYS_ASSERT((num_bins > 0) && (rb_range_k % num_bins == 0), "num_bins must be positive and k must be a multiple of the number of bins.");
+        ALWAYS_ASSERT(partitions.empty() || (partitions.size() == hypernodes.size()),
             "Size of fixed vertice partition IDs does not match the number of hypernodes.");
         ASSERT([&]() {
             for (size_t i = 1; i < hypernodes.size(); ++i) {
@@ -56,9 +58,15 @@ namespace bin_packing {
         }
 
         BinaryMinHeap<PartitionID, HypernodeWeight> result_queue(num_bins);
+        for(PartitionID i = 0; i < num_bins; ++i) {
+            result_queue.push(i, 0);
+        }
 
         // At the first level, a packing with k bins is calculated ....
         BinaryMinHeap<PartitionID, HypernodeWeight> k_bin_queue(rb_range_k);
+        for(PartitionID i = 0; i < rb_range_k; ++i) {
+            k_bin_queue.push(i, 0);
+        }
         bool fixed_vertex_contained = false;
 
         for(size_t i = 0; i < hypernodes.size(); ++i) {
@@ -74,7 +82,7 @@ namespace bin_packing {
                 partitions[i] = kbin;
             } else {
                 // fixed vertex: skip the k-bins level and instead assigned directly to the final bins
-                ASSERT(partitions[i] < num_bins, "Invalid partition ID for node.");
+                ALWAYS_ASSERT(partitions[i] < num_bins, "Invalid partition ID for node.");
 
                 fixed_vertex_contained = true;
                 result_queue.increaseKeyBy(partitions[i], weight);
@@ -94,7 +102,7 @@ namespace bin_packing {
 
             // read bins from queue
             // iteration must be in reverse order, because the smallest bins are on top
-            for(size_t i = rb_range_k - 1; i >= 0; --i) {
+            for(ssize_t i = rb_range_k - 1; i >= 0; --i) {
                 // TODO remove
                 ASSERT(k_bin_queue.top() < rb_range_k);
 
