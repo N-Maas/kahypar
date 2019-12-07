@@ -35,8 +35,6 @@ namespace bin_packing {
     /**
      * The hypernodes must be sorted in descending order of weight. 
      * The partitions parameter can be used to specify fixed vertices.
-     *
-     * Attention: the algorithm assumes that any fixed vertices are already partitioned in a balanced way.
      */
     static inline std::vector<PartitionID> two_level_packing(const Hypergraph& hg,
                                                               const std::vector<HypernodeID>& hypernodes,
@@ -163,6 +161,25 @@ namespace bin_packing {
         }
 
         return partitions;
+    }
+
+    /**
+     * Returns the current hypernodes sorted in descending order of weight.
+     */
+    static inline std::vector<HypernodeID> extract_nodes_with_descending_weight(const Hypergraph& hg) {
+        std::vector<HypernodeID> nodes;
+        nodes.reserve(hg.currentNumNodes());
+
+        for(const HypernodeID& hn : hg.nodes()) {
+            nodes.push_back(hn);
+        }
+        ASSERT(hg.currentNumNodes() == nodes.size());
+
+        std::sort(nodes.begin(), nodes.end(), [&hg](HypernodeID a, HypernodeID b) {
+            return hg.nodeWeight(a) > hg.nodeWeight(b);
+        });
+
+        return nodes;
     }
 }
 }

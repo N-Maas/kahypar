@@ -256,4 +256,17 @@ TEST_F(BinPackingTest, FixedVerticesTwoLevel) {
   ASSERT_EQ(result.at(5), 0);
 }
 
+TEST_F(BinPackingTest, ExtractNodes) {
+  initializeWeights({2, 1, 3, 6, 4, 5});
+
+  auto result = bin_packing::extract_nodes_with_descending_weight(hypergraph);
+  ASSERT_EQ(result.size(), 6);
+  ASSERT_EQ(result.at(0), 3);
+  ASSERT_EQ(result.at(1), 5);
+  ASSERT_EQ(result.at(2), 4);
+  ASSERT_EQ(result.at(3), 2);
+  ASSERT_EQ(result.at(4), 0);
+  ASSERT_EQ(result.at(5), 1);
+}
+
 }  // namespace kahypar
