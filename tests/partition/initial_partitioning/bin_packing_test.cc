@@ -113,7 +113,7 @@ TEST_F(BinPackingTest, MultiBinPacking) {
     ASSERT_TRUE(contained[i]);
   }
 
-  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3, 4 , 5}, 3, 3);
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3, 4, 5}, 3, 3);
   ASSERT_EQ(result.size(), 6);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 2);
@@ -156,6 +156,104 @@ TEST_F(BinPackingTest, TwoLevelPackingComplex) {
   ASSERT_EQ(result.at(8), 1);
   ASSERT_EQ(result.at(9), 1);
   ASSERT_EQ(result.at(10), 0);
+}
+
+TEST_F(BinPackingTest, FixedVerticesBase) {
+  initializeWeights({1, 1});
+
+  auto result = bin_packing::two_level_packing(hypergraph, {0, 1}, 1, 1, {-1, -1});
+  ASSERT_EQ(result.size(), 2);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 0);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1}, 1, 1, {0, -1});
+  ASSERT_EQ(result.size(), 2);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 0);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1}, 1, 1, {0, 0});
+  ASSERT_EQ(result.size(), 2);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 0);
+}
+
+TEST_F(BinPackingTest, FixedVerticesOneLevel) {
+  initializeWeights({4, 3, 2, 1});
+
+  auto result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3}, 2, 2, {0, 1, 0, 1});
+  ASSERT_EQ(result.size(), 4);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ(result.at(2), 0);
+  ASSERT_EQ(result.at(3), 1);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3}, 3, 3, {0, 0, 2, 2});
+  ASSERT_EQ(result.size(), 4);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 0);
+  ASSERT_EQ(result.at(2), 2);
+  ASSERT_EQ(result.at(3), 2);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3}, 2, 2, {1, -1, -1, -1});
+  ASSERT_EQ(result.size(), 4);
+  ASSERT_EQ(result.at(0), 1);
+  ASSERT_EQ(result.at(1), 0);
+  ASSERT_EQ(result.at(2), 0);
+  ASSERT_EQ(result.at(3), 1);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3}, 2, 2, {-1, -1, 0, 0});
+  ASSERT_EQ(result.size(), 4);
+  ASSERT_EQ(result.at(0), 1);
+  ASSERT_EQ(result.at(1), 0);
+  ASSERT_EQ(result.at(2), 0);
+  ASSERT_EQ(result.at(3), 0);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3}, 2, 2, {-1, 1, 0, -1});
+  ASSERT_EQ(result.size(), 4);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ(result.at(2), 0);
+  ASSERT_EQ(result.at(3), 1);
+}
+
+TEST_F(BinPackingTest, FixedVerticesTwoLevel) {
+  initializeWeights({7, 5, 4, 3, 2, 1});
+
+  auto result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3, 4, 5}, 2, 4, {0, 1, 0, 1, 1, 0});
+  ASSERT_EQ(result.size(), 6);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ(result.at(2), 0);
+  ASSERT_EQ(result.at(3), 1);
+  ASSERT_EQ(result.at(4), 1);
+  ASSERT_EQ(result.at(5), 0);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3, 4, 5}, 3, 9, {0, 2, 0, 2, 1, 0});
+  ASSERT_EQ(result.size(), 6);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 2);
+  ASSERT_EQ(result.at(2), 0);
+  ASSERT_EQ(result.at(3), 2);
+  ASSERT_EQ(result.at(4), 1);
+  ASSERT_EQ(result.at(5), 0);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3, 4, 5}, 2, 4, {-1, 1, 1, -1, -1, -1});
+  ASSERT_EQ(result.size(), 6);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ(result.at(2), 1);
+  ASSERT_EQ(result.at(3), 0);
+  ASSERT_EQ(result.at(4), 0);
+  ASSERT_EQ(result.at(5), 1);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3, 4, 5}, 2, 4, {1, -1, -1, -1, 0, 0});
+  ASSERT_EQ(result.size(), 6);
+  ASSERT_EQ(result.at(0), 1);
+  ASSERT_EQ(result.at(1), 0);
+  ASSERT_EQ(result.at(2), 1);
+  ASSERT_EQ(result.at(3), 0);
+  ASSERT_EQ(result.at(4), 0);
+  ASSERT_EQ(result.at(5), 0);
 }
 
 }  // namespace kahypar
