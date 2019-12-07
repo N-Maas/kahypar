@@ -84,33 +84,25 @@ namespace bin_packing {
             PartitionID kbins_per_partition = rb_range_k / num_partitions;
 
             for(const auto& index : fixed_vertices) {
-                // TODO remove
-                ASSERT(index < hypernodes.size());
-
                 HypernodeWeight weight = hg.nodeWeight(hypernodes[index]);
                 PartitionID part_id = partitions[index];
 
                 PartitionID start_index = part_id * kbins_per_partition;
                 PartitionID assigned_bin = start_index;
 
-                for(PartitionID i = start_index; i < start_index + kbins_per_partition; ++i) {
-                    HypernodeWeight current_bin_weight = k_bin_queue.getKey(i);
+                if(kbins_per_partition > 1) {
+                    for(PartitionID i = start_index; i < start_index + kbins_per_partition; ++i) {
+                        HypernodeWeight current_bin_weight = k_bin_queue.getKey(i);
 
-                    // TODO remove
-                    ASSERT((current_bin_weight == 0) || (kbin_to_partition_mapping[i] == part_id));
-
-                    // The vertex is assigned to the first fitting bin or, if none fits, the smallest bin.
-                    if(current_bin_weight + weight <= avg_bin_weight) {
-                        assigned_bin = i;
-                        break;
-                    } else if (current_bin_weight < k_bin_queue.getKey(assigned_bin)) {
-                        assigned_bin = i;
+                        // The vertex is assigned to the first fitting bin or, if none fits, the smallest bin.
+                        if(current_bin_weight + weight <= avg_bin_weight) {
+                            assigned_bin = i;
+                            break;
+                        } else if (current_bin_weight < k_bin_queue.getKey(assigned_bin)) {
+                            assigned_bin = i;
+                        }
                     }
                 }
-
-                // TODO remove
-                ASSERT(assigned_bin < kbin_to_partition_mapping.size());
-                ASSERT((kbin_to_partition_mapping[assigned_bin] == -1) || (kbin_to_partition_mapping[assigned_bin] == part_id));
 
                 k_bin_queue.increaseKeyBy(assigned_bin, weight);
                 kbin_to_partition_mapping[assigned_bin] = part_id;
@@ -123,10 +115,6 @@ namespace bin_packing {
             if(partitions[i] == -1) {
                 // assign node to bin with lowest weight
                 PartitionID kbin = k_bin_queue.top();
-
-                // TODO remove
-                ASSERT(kbin < rb_range_k);
-
                 k_bin_queue.increaseKeyBy(kbin, hg.nodeWeight(hypernodes[i]));
                 partitions[i] = kbin;
             }
@@ -143,11 +131,15 @@ namespace bin_packing {
 
             // read bins from queue
             while(k_bin_queue.size() > 0) {
-                // TODO remove
-                ASSERT(k_bin_queue.top() < rb_range_k);
-
-                kbin_ascending_ordering.push_back({k_bin_queue.top(), k_bin_queue.topKey()});
+                PartitionID kbin = k_bin_queue.top();
+                HypernodeWeight weight = k_bin_queue.topKey();
                 k_bin_queue.pop();
+
+                if(kbin_to_partition_mapping[kbin] == -1) {
+                    kbin_ascending_ordering.push_back({kbin, weight});
+                } else {
+                    result_queue.increaseKeyBy(kbin_to_partition_mapping[kbin], weight);
+                }
             }
             ASSERT(k_bin_queue.size() == 0);
 
@@ -166,7 +158,6 @@ namespace bin_packing {
             // remap the partition IDs of the nodes
             for(PartitionID& id : partitions) {
                 id = kbin_to_partition_mapping[id];
-
                 ASSERT((id >= 0) && (id < rb_range_k));
             }
         }
