@@ -22,6 +22,8 @@
 
 #include <vector>
 
+#include <boost/range/adaptor/reversed.hpp>
+
 #include "kahypar/definitions.h"
 #include "kahypar/datastructure/binary_heap.h"
 
@@ -38,10 +40,11 @@ namespace bin_packing {
      */
     static inline std::vector<PartitionID> two_level_packing(const Hypergraph& hg,
                                                               const std::vector<HypernodeID>& hypernodes,
-                                                              const PartitionID& num_bins,
+                                                              const PartitionID& num_partitions,
                                                               const PartitionID& rb_range_k,
                                                               std::vector<PartitionID> partitions = {}) {
-        ALWAYS_ASSERT((num_bins > 0) && (rb_range_k % num_bins == 0), "num_bins must be positive and k must be a multiple of the number of bins.");
+        ALWAYS_ASSERT((num_partitions > 0) && (rb_range_k % num_partitions == 0),
+            "num_partitions must be positive and k must be a multiple of the number of bins.");
         ALWAYS_ASSERT(partitions.empty() || (partitions.size() == hypernodes.size()),
             "Size of fixed vertice partition IDs does not match the number of hypernodes.");
         ASSERT([&]() {
@@ -53,90 +56,118 @@ namespace bin_packing {
             return true;
         } (), "The hypernodes must be sorted in descending order of weight.");
 
-        if(partitions.empty()) {
-            partitions.resize(hypernodes.size(), -1);
-        }
-
-        BinaryMinHeap<PartitionID, HypernodeWeight> result_queue(num_bins);
-        for(PartitionID i = 0; i < num_bins; ++i) {
-            result_queue.push(i, 0);
-        }
-
-        // At the first level, a packing with k bins is calculated ....
         BinaryMinHeap<PartitionID, HypernodeWeight> k_bin_queue(rb_range_k);
         for(PartitionID i = 0; i < rb_range_k; ++i) {
             k_bin_queue.push(i, 0);
         }
-        bool fixed_vertex_contained = false;
+        std::vector<PartitionID> kbin_to_partition_mapping(rb_range_k, -1);
 
-        for(size_t i = 0; i < hypernodes.size(); ++i) {
-            HypernodeWeight weight = hg.nodeWeight(hypernodes[i]);
+        if(partitions.empty()) {
+            partitions.resize(hypernodes.size(), -1);
+        } else {
+            // If fixed vertices are specified, calculate the total weight and extract all fixed vertices...
+            HypernodeWeight total_weight = 0;
+            std::vector<size_t> fixed_vertices;
 
-            if(partitions[i] == -1) {
-                // assign node to bin with lowest weight
-                PartitionID kbin = k_bin_queue.top();
+            for(size_t i = 0; i < hypernodes.size(); ++i) {
+                total_weight += hg.nodeWeight(hypernodes[i]);
+
+                if(partitions[i] >= 0) {
+                    ALWAYS_ASSERT(partitions[i] < num_partitions, "Invalid partition ID for node.");
+
+                    fixed_vertices.push_back(i);
+                }
+            }
+
+            // ...to pre-pack the fixed vertices with a first fit packing
+            HypernodeWeight avg_bin_weight = (total_weight + rb_range_k - 1) / rb_range_k;
+            PartitionID kbins_per_partition = rb_range_k / num_partitions;
+
+            for(const auto& index : fixed_vertices) {
                 // TODO remove
-                ASSERT(kbin < rb_range_k);
+                ASSERT(index < hypernodes.size());
 
-                k_bin_queue.increaseKeyBy(kbin, weight);
-                partitions[i] = kbin;
-            } else {
-                // fixed vertex: skip the k-bins level and instead assigned directly to the final bins
-                ALWAYS_ASSERT(partitions[i] < num_bins, "Invalid partition ID for node.");
+                HypernodeWeight weight = hg.nodeWeight(hypernodes[index]);
+                PartitionID part_id = partitions[index];
 
-                fixed_vertex_contained = true;
-                result_queue.increaseKeyBy(partitions[i], weight);
+                PartitionID start_index = part_id * kbins_per_partition;
+                PartitionID assigned_bin = start_index;
 
-                // shift indizes for fixed vertices, so they are not remapped
-                // TODO: this is rather ugly
-                partitions[i] += rb_range_k;
+                for(PartitionID i = start_index; i < start_index + kbins_per_partition; ++i) {
+                    HypernodeWeight current_bin_weight = k_bin_queue.getKey(i);
+
+                    // TODO remove
+                    ASSERT((current_bin_weight == 0) || (kbin_to_partition_mapping[i] == part_id));
+
+                    // The vertex is assigned to the first fitting bin or, if none fits, the smallest bin.
+                    if(current_bin_weight + weight <= avg_bin_weight) {
+                        assigned_bin = i;
+                        break;
+                    } else if (current_bin_weight < k_bin_queue.getKey(assigned_bin)) {
+                        assigned_bin = i;
+                    }
+                }
+
+                // TODO remove
+                ASSERT(assigned_bin < kbin_to_partition_mapping.size());
+                ASSERT((kbin_to_partition_mapping[assigned_bin] == -1) || (kbin_to_partition_mapping[assigned_bin] == part_id));
+
+                k_bin_queue.increaseKeyBy(assigned_bin, weight);
+                kbin_to_partition_mapping[assigned_bin] = part_id;
+                partitions[index] = assigned_bin;
             }
         }
 
-        ASSERT(k_bin_queue.size() == rb_range_k);
+        // At the first level, a packing with k bins is calculated ....
+        for(size_t i = 0; i < hypernodes.size(); ++i) {
+            if(partitions[i] == -1) {
+                // assign node to bin with lowest weight
+                PartitionID kbin = k_bin_queue.top();
+
+                // TODO remove
+                ASSERT(kbin < rb_range_k);
+
+                k_bin_queue.increaseKeyBy(kbin, hg.nodeWeight(hypernodes[i]));
+                partitions[i] = kbin;
+            }
+        }
+
+        BinaryMinHeap<PartitionID, HypernodeWeight> result_queue(num_partitions);
+        for(PartitionID i = 0; i < num_partitions; ++i) {
+            result_queue.push(i, 0);
+        }
 
         // ... and at the second level, the resulting k bins are packed into the final bins
-        if((rb_range_k != num_bins) || fixed_vertex_contained) {
-            std::vector<HypernodeWeight> kbin_weights(rb_range_k);
-            std::vector<PartitionID> kbin_decreasing_ordering(rb_range_k);
+        if(rb_range_k != num_partitions) {
+            std::vector<std::pair<PartitionID, HypernodeWeight>> kbin_ascending_ordering;
 
             // read bins from queue
-            // iteration must be in reverse order, because the smallest bins are on top
-            for(ssize_t i = rb_range_k - 1; i >= 0; --i) {
+            while(k_bin_queue.size() > 0) {
                 // TODO remove
                 ASSERT(k_bin_queue.top() < rb_range_k);
 
-                kbin_decreasing_ordering[i] = k_bin_queue.top();
-                kbin_weights[i] = k_bin_queue.topKey();
+                kbin_ascending_ordering.push_back({k_bin_queue.top(), k_bin_queue.topKey()});
                 k_bin_queue.pop();
             }
             ASSERT(k_bin_queue.size() == 0);
 
-            // pack bins to partitions
-            std::vector<PartitionID> kbin_to_partition_mapping(rb_range_k, -1);
+            // iteration must be in reverse order, because the vector is ascending
+            for(const auto& kbin : boost::adaptors::reverse(kbin_ascending_ordering)) {
+                // if not fixed, assign bin to partition with lowest weight
+                if(kbin_to_partition_mapping[kbin.first] == -1) {
+                    PartitionID partition = result_queue.top();
+                    ASSERT((partition >= 0) && (partition < num_partitions));
 
-            for(size_t i = 0; i < rb_range_k; ++i) {
-                // assign bin to partition with lowest weight
-                PartitionID partition = result_queue.top();
-                // TODO remove
-                ASSERT(partition < num_bins);
-
-                result_queue.increaseKeyBy(partition, kbin_weights[i]);
-
-                PartitionID kbin = kbin_decreasing_ordering[i];
-                kbin_to_partition_mapping[kbin] = partition;
+                    result_queue.increaseKeyBy(partition, kbin.second);
+                    kbin_to_partition_mapping[kbin.first] = partition;
+                }
             }
 
             // remap the partition IDs of the nodes
             for(PartitionID& id : partitions) {
-                if(id < rb_range_k) {
-                    id = kbin_to_partition_mapping[id];
-                } else {
-                    // reshift fixed vertex id
-                    id -= rb_range_k;
-                }
+                id = kbin_to_partition_mapping[id];
 
-                ASSERT((id != -1) && (id < rb_range_k));
+                ASSERT((id >= 0) && (id < rb_range_k));
             }
         }
 
