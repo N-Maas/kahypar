@@ -112,6 +112,7 @@ enum class InitialPartitionerAlgorithm : uint8_t {
   bfs,
   random,
   lp,
+  bin_packing,
   pool,
   UNDEFINED
 };
@@ -362,6 +363,7 @@ std::ostream& operator<< (std::ostream& os, const InitialPartitionerAlgorithm& a
     case InitialPartitionerAlgorithm::bfs: return os << "bfs";
     case InitialPartitionerAlgorithm::random: return os << "random";
     case InitialPartitionerAlgorithm::lp: return os << "lp";
+    case InitialPartitionerAlgorithm::bin_packing: return os << "bin_packing";
     case InitialPartitionerAlgorithm::pool: return os << "pool";
     case InitialPartitionerAlgorithm::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases

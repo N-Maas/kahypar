@@ -270,9 +270,9 @@ struct InitialPartitioningParameters {
   // Is used to get a tighter balance constraint for initial partitioning.
   // Before initial partitioning epsilon is set to init_alpha*epsilon.
   double init_alpha = 1;
-  // If pool initial partitioner is used, the first 12 bits of this number decides
+  // If pool initial partitioner is used, the first 13 bits of this number decides
   // which algorithms are used.
-  unsigned int pool_type = 1975;
+  unsigned int pool_type = 0b1011110110111;
   // Maximum iterations of the Label Propagation IP over all hypernodes
   int lp_max_iteration = 100;
   // Amount of hypernodes which are assigned around each start vertex (LP)
