@@ -35,16 +35,25 @@ namespace bin_packing {
     /**
      * The hypernodes must be sorted in descending order of weight. 
      * The partitions parameter can be used to specify fixed vertices.
+     * With reserved_weights, weights for partitions can be added (e.g. to handle uneven k).
+     *
+     * Attention: the algorithm assumus that the partitions can be balanced
+     * with rb_range_k bins of equal weight.
      */
     static inline std::vector<PartitionID> two_level_packing(const Hypergraph& hg,
                                                               const std::vector<HypernodeID>& hypernodes,
                                                               const PartitionID& num_partitions,
                                                               const PartitionID& rb_range_k,
-                                                              std::vector<PartitionID> partitions = {}) {
-        ALWAYS_ASSERT((num_partitions > 0) && (rb_range_k % num_partitions == 0),
-            "num_partitions must be positive and k must be a multiple of the number of bins.");
+                                                              std::vector<PartitionID> partitions = {},
+                                                              const std::vector<HypernodeWeight>& reserved_weights = {}) {
+        ALWAYS_ASSERT((num_partitions > 0) && (rb_range_k > 0),
+            "num_partitions and rb_range_k must be positive.");
         ALWAYS_ASSERT(partitions.empty() || (partitions.size() == hypernodes.size()),
             "Size of fixed vertice partition IDs does not match the number of hypernodes.");
+        ALWAYS_ASSERT(reserved_weights.empty() || (reserved_weights.size() == static_cast<size_t>(num_partitions)),
+            "Size of reserved weights does not match the number of partitions.");
+        ASSERT(reserved_weights.empty() || (num_partitions != rb_range_k),
+            "Reserved weights are currently not used for one level.");
         ASSERT([&]() {
             for (size_t i = 1; i < hypernodes.size(); ++i) {
                 if (hg.nodeWeight(hypernodes[i-1]) < hg.nodeWeight(hypernodes[i])) {
@@ -118,16 +127,25 @@ namespace bin_packing {
             }
         }
 
-        BinaryMinHeap<PartitionID, HypernodeWeight> result_queue(num_partitions);
-        for(PartitionID i = 0; i < num_partitions; ++i) {
-            result_queue.push(i, 0);
-        }
-
         // ... and at the second level, the resulting k bins are packed into the final bins
         if(rb_range_k != num_partitions) {
+            // initialize result queue
+            BinaryMinHeap<PartitionID, HypernodeWeight> result_queue(num_partitions);
+            for(PartitionID i = 0; i < num_partitions; ++i) {
+                result_queue.push(i, 0);
+            }
+
+            if(!reserved_weights.empty()) {
+                ASSERT(reserved_weights.size() == result_queue.size());
+
+                for(size_t i = 0; i < reserved_weights.size(); ++i) {
+                    result_queue.increaseKeyBy(i, reserved_weights[i]);
+                }
+            }
+
+            // read bins from kbin queue
             std::vector<std::pair<PartitionID, HypernodeWeight>> kbin_ascending_ordering;
 
-            // read bins from queue
             while(k_bin_queue.size() > 0) {
                 PartitionID kbin = k_bin_queue.top();
                 HypernodeWeight weight = k_bin_queue.topKey();

@@ -51,8 +51,9 @@ class BinPackingTest : public Test {
 TEST_F(BinPackingTest, EmptyCase) {
   initializeWeights({});
 
-  ASSERT_TRUE(bin_packing::two_level_packing(hypergraph, {}, 2, 0).empty());
+  ASSERT_TRUE(bin_packing::two_level_packing(hypergraph, {}, 2, 1).empty());
   ASSERT_TRUE(bin_packing::two_level_packing(hypergraph, {}, 2, 2).empty());
+  ASSERT_TRUE(bin_packing::two_level_packing(hypergraph, {}, 2, 3).empty());
   ASSERT_TRUE(bin_packing::two_level_packing(hypergraph, {}, 2, 4).empty());
 }
 
@@ -255,6 +256,69 @@ TEST_F(BinPackingTest, FixedVerticesTwoLevel) {
   ASSERT_EQ(result.at(4), 0);
   ASSERT_EQ(result.at(5), 0);
 }
+
+TEST_F(BinPackingTest, UnevenBase) {
+  initializeWeights({4, 2, 1});
+
+  auto result = bin_packing::two_level_packing(hypergraph, {0, 1, 2}, 2, 3);
+  ASSERT_EQ(result.size(), 3);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ(result.at(2), 1);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2}, 3, 5);
+  ASSERT_EQ(result.size(), 3);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 2);
+  ASSERT_EQ(result.at(2), 1);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2}, 2, 3, {}, {5, 0});
+  ASSERT_EQ(result.size(), 3);
+  ASSERT_EQ(result.at(0), 1);
+  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ(result.at(2), 0);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2}, 2, 3, {0, -1, -1}, {5, 0});
+  ASSERT_EQ(result.size(), 3);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ(result.at(2), 1);
+}
+
+TEST_F(BinPackingTest, UnevenAndFixed) {
+  initializeWeights({5, 4, 3, 3, 1});
+
+  auto result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3, 4}, 2, 3, {-1, 0, -1, 1, -1});
+  // The packing in 3 bins:
+  // (F0)4 (3.)1           5
+  // (F1)3 (2.)3           6
+  // (1.)5                 5
+
+  ASSERT_EQ(result.size(), 5);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 0);
+  ASSERT_EQ(result.at(2), 1);
+  ASSERT_EQ(result.at(3), 1);
+  ASSERT_EQ(result.at(4), 0);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3, 4}, 2, 3, {1, -1, -1, 1, 1});
+  ASSERT_EQ(result.size(), 5);
+  ASSERT_EQ(result.at(0), 1);
+  ASSERT_EQ(result.at(1), 0);
+  ASSERT_EQ(result.at(2), 0);
+  ASSERT_EQ(result.at(3), 1);
+  ASSERT_EQ(result.at(4), 1);
+
+  result = bin_packing::two_level_packing(hypergraph, {0, 1, 2, 3, 4}, 2, 3, {1, -1, -1, 1, 1}, {0, 5});
+  ASSERT_EQ(result.size(), 5);
+  ASSERT_EQ(result.at(0), 1);
+  ASSERT_EQ(result.at(1), 0);
+  ASSERT_EQ(result.at(2), 0);
+  ASSERT_EQ(result.at(3), 1);
+  ASSERT_EQ(result.at(4), 1);
+}
+
+// TODO complex test for uneven
 
 TEST_F(BinPackingTest, ExtractNodes) {
   initializeWeights({2, 1, 3, 6, 4, 5});
