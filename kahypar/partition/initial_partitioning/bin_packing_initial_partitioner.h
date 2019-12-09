@@ -47,15 +47,15 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
  private:
   void initializeNodes() {
     // exctract hypernodes in descending order
-    if(_descending_nodes.empty()) {
+    if (_descending_nodes.empty()) {
       _descending_nodes = bin_packing::extract_nodes_with_descending_weight(_hg);
     }
 
     // shuffle nodes with equal weight
     size_t i = 0;
-    for(size_t j = 1; j < _descending_nodes.size(); ++j) {
-      if(_hg.nodeWeight(_descending_nodes[i]) != _hg.nodeWeight(_descending_nodes[j])) {
-        if(j > i + 1) {
+    for (size_t j = 1; j < _descending_nodes.size(); ++j) {
+      if (_hg.nodeWeight(_descending_nodes[i]) != _hg.nodeWeight(_descending_nodes[j])) {
+        if (j > i + 1) {
           Randomize::instance().shuffleVector(_descending_nodes, i, j);
         }
         i = j;
@@ -99,36 +99,54 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
     for (size_t i = 0; i < _descending_nodes.size(); ++i) {
       HypernodeID hn = _descending_nodes[i];
 
-      if(_hg.isFixedVertex(hn)) {
+      if (_hg.isFixedVertex(hn)) {
         partitions[i] = _hg.fixedVertexPartID(hn);
       }
     }
 
-    // apply bin packing
     PartitionID num_bins = _context.partition.rb_upper_k - _context.partition.rb_lower_k + 1;
+    std::vector<HypernodeWeight> reserved_weights;
+
+    // handle uneven k
+    if ((num_bins % _context.initial_partitioning.k) != 0) {
+      reserved_weights.reserve(_context.initial_partitioning.k);
+
+      for (PartitionID p = 0; p < _context.initial_partitioning.k; ++p) {
+        reserved_weights.push_back(_context.initial_partitioning.upper_allowed_partition_weight[p]);
+      }
+      ASSERT(!reserved_weights.empty());
+      HypernodeWeight max = *std::max_element(reserved_weights.cbegin(), reserved_weights.cend());
+
+      // the bin packing algorithm requires the complement of the allowed weights
+      for (HypernodeWeight& w : reserved_weights) {
+        w = max - w;
+      }
+    }
+
+    // apply bin packing
     partitions = bin_packing::two_level_packing(_hg, _descending_nodes, _context.initial_partitioning.k,
-                                                num_bins, std::move(partitions));
+                                                num_bins, std::move(partitions), reserved_weights);
 
     ASSERT(partitions.size() == _descending_nodes.size(), "wrong size of partition ids");
 
-    for(size_t i = 0; i < _descending_nodes.size(); ++i) {
+    for (size_t i = 0; i < _descending_nodes.size(); ++i) {
       HypernodeID hn = _descending_nodes[i];
 
       bool assigned = false;
       PartitionID p = partitions[i];
       do {
-        if(Base::assignHypernodeToPartition(hn, p)) {
+        if (Base::assignHypernodeToPartition(hn, p)) {
           assigned = true;
           break;
         }
 
         ++p;
         p %= _context.initial_partitioning.k;
-      } while(p != partitions[i]);
+      } while (p != partitions[i]);
 
       // If the current hypernode fits in no part of the partition, we have
       // to assign it to a part which violates the imbalance definition.
-      if(!assigned) {
+      if (!assigned) {
         _hg.setNodePart(hn, p);
       }
 
