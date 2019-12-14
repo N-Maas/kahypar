@@ -48,27 +48,23 @@ class BinPackingTest : public Test {
     Hypergraph hypergraph;
 };
 
-TEST_F(BinPackingTest, EmptyCase) {
+TEST_F(BinPackingTest, BaseCases) {
   initializeWeights({});
 
   ASSERT_TRUE(bin_packing::two_level_packing(hypergraph, {}, 2, 1).empty());
   ASSERT_TRUE(bin_packing::two_level_packing(hypergraph, {}, 2, 2).empty());
   ASSERT_TRUE(bin_packing::two_level_packing(hypergraph, {}, 2, 3).empty());
   ASSERT_TRUE(bin_packing::two_level_packing(hypergraph, {}, 2, 4).empty());
-}
 
-TEST_F(BinPackingTest, OneNode) {
   initializeWeights({1});
 
   auto result = bin_packing::two_level_packing(hypergraph, {0}, 1, 1);
   ASSERT_EQ(result.size(), 1);
   ASSERT_EQ(result.at(0), 0);
-}
 
-TEST_F(BinPackingTest, TwoNodes) {
   initializeWeights({1, 1});
 
-  auto result = bin_packing::two_level_packing(hypergraph, {0, 1}, 2, 2);
+  result = bin_packing::two_level_packing(hypergraph, {0, 1}, 2, 2);
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
@@ -321,6 +317,10 @@ TEST_F(BinPackingTest, UnevenAndFixed) {
 // TODO complex test for uneven
 
 TEST_F(BinPackingTest, ExtractNodes) {
+  initializeWeights({});
+
+  ASSERT_EQ(bin_packing::extract_nodes_with_descending_weight(hypergraph).size(), 0);
+
   initializeWeights({2, 1, 3, 6, 4, 5});
 
   auto result = bin_packing::extract_nodes_with_descending_weight(hypergraph);
@@ -331,6 +331,26 @@ TEST_F(BinPackingTest, ExtractNodes) {
   ASSERT_EQ(result.at(3), 2);
   ASSERT_EQ(result.at(4), 0);
   ASSERT_EQ(result.at(5), 1);
+}
+
+TEST_F(BinPackingTest, TreshholdBase) {
+  initializeWeights({6, 5, 4, 3, 2, 1});
+
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {}, 1, 0), 0);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {}, 3, 0), 0);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {}, 4, 1), 0);
+
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 5}, 4, 0), 2);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 5}, 4, 1), 1);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 1, 2, 3, 4, 5}, 4, 2), 1);
+}
+
+TEST_F(BinPackingTest, TreshholdComplex) {
+  initializeWeights({22, 18, 17, 8, 7, 3, 1, 1});
+
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 5, 6, 7}, 4, 2), 1);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7}, 4, 2), 5);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7}, 4, 4), 3);
 }
 
 }  // namespace kahypar

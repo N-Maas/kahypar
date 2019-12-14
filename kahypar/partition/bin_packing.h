@@ -31,6 +31,7 @@ namespace kahypar {
 
 namespace bin_packing {
     using kahypar::ds::BinaryMinHeap;
+    using kahypar::ds::BinaryMaxHeap;
 
     /**
      * The hypernodes must be sorted in descending order of weight. 
@@ -44,7 +45,7 @@ namespace bin_packing {
                                                               const std::vector<HypernodeID>& hypernodes,
                                                               const PartitionID& num_partitions,
                                                               const PartitionID& rb_range_k,
-                                                              std::vector<PartitionID> partitions = {},
+                                                              std::vector<PartitionID>&& partitions = {},
                                                               const std::vector<HypernodeWeight>& reserved_weights = {}) {
         ALWAYS_ASSERT((num_partitions > 0) && (rb_range_k > 0),
             "num_partitions and rb_range_k must be positive.");
@@ -52,7 +53,7 @@ namespace bin_packing {
             "Size of fixed vertice partition IDs does not match the number of hypernodes.");
         ALWAYS_ASSERT(reserved_weights.empty() || (reserved_weights.size() == static_cast<size_t>(num_partitions)),
             "Size of reserved weights does not match the number of partitions.");
-        ASSERT(reserved_weights.empty() || (num_partitions != rb_range_k),
+        ALWAYS_ASSERT(reserved_weights.empty() || (num_partitions != rb_range_k),
             "Reserved weights are currently not used for one level.");
         ASSERT([&]() {
             for (size_t i = 1; i < hypernodes.size(); ++i) {
@@ -198,6 +199,80 @@ namespace bin_packing {
         });
 
         return nodes;
+    }
+
+    /**
+     * Calculates an index i for a set of n hypernodes with descending order of weight
+     * s.t. for any (balanced) bipartition of i and the remaining lighter hypernodes, the
+     * biparition does not worsen the imbalance of lower bisection levels by more
+     * then allowed_imbalance.
+     *
+     * The hypernodes must be sorted in descending order of weight.
+     *
+     * i is calculated in the following way: Let i the index of a hypernode and j the
+     * minimum index s.t. sum_{l=i}^j (a_l) >= sum_{l=j+1}^n (a_l). Choose the smallest
+     * i s.t. max{a_l - 1/k * sum_{m=l}^j (a_l) | l in {i, ..., j}} is minimized.
+     *
+     * The algorithm is implemented in O(n*log(n)) by reusing the values of the previous
+     * step and tracking the curent maximum with a priority queue.
+     */
+    static inline size_t calculate_heavy_nodes_treshhold(const Hypergraph& hg,
+                                                         const std::vector<HypernodeID>& hypernodes,
+                                                         const PartitionID& rb_range_k,
+                                                         const HypernodeWeight& allowed_imbalance) {
+        ALWAYS_ASSERT(rb_range_k > 0, "rb_range_k must be positive.");
+        ASSERT([&]() {
+            for (size_t i = 1; i < hypernodes.size(); ++i) {
+                if (hg.nodeWeight(hypernodes[i-1]) < hg.nodeWeight(hypernodes[i])) {
+                    return false;
+                }
+            }
+            return true;
+        } (), "The hypernodes must be sorted in descending order of weight.");
+
+        if(rb_range_k <= 2) {
+            return 0;
+        }
+
+        PartitionID k = (rb_range_k + 1) / 2;
+        HypernodeWeight total_remaining_weight = 0;
+        for(const auto& node : hypernodes) {
+            total_remaining_weight += hg.nodeWeight(node);
+        }
+
+        BinaryMaxHeap<size_t, HypernodeWeight> ratings(hypernodes.size());
+        size_t i = 0;
+        size_t j = 0;
+        HypernodeWeight sum_of_range = 0;
+        HypernodeWeight sum_of_previous = 0;
+
+        while(i < hypernodes.size()) {
+            // increase j
+            while(sum_of_range < (total_remaining_weight + 1) / 2) {
+                ASSERT(j < hypernodes.size());
+
+                HypernodeWeight weight = hg.nodeWeight(hypernodes[j]);
+                ratings.push(j, sum_of_previous + k * weight);
+                sum_of_range += weight;
+                sum_of_previous += weight;
+                ++j;
+            }
+
+            // test whether current i is sufficient
+            HypernodeWeight best_rating = (ratings.topKey() - sum_of_previous + k - 1) / k;
+            if(best_rating <= allowed_imbalance) {
+                break;
+            }
+
+            // increase i
+            HypernodeWeight weight = hg.nodeWeight(hypernodes[i]);
+            ratings.remove(i);
+            total_remaining_weight -= weight;
+            sum_of_range -= weight;
+            ++i;
+        }
+
+        return i;
     }
 }
 }

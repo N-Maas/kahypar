@@ -66,7 +66,7 @@ std::vector<HypernodeWeight> createWeights(HypernodeID num_nodes, HypernodeID ma
   int three_probability = std::uniform_int_distribution<>{ 3, 6 }(gen);
   int five_probability = std::uniform_int_distribution<>{ 2, 5 }(gen);
   int seventeen_probability = std::uniform_int_distribution<>{ 1, 2 }(gen);
-  std::discrete_distribution<HypernodeWeight> light_weights_distribution{double(one_probability), 0, double(three_probability),
+  std::discrete_distribution<HypernodeWeight> light_weights_distribution{0, double(one_probability), 0, double(three_probability),
     0, double(five_probability), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, double(seventeen_probability)};
   HypernodeWeight total_weight = 0;
 
