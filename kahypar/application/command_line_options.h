@@ -381,6 +381,16 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
         kahypar::initialPartitioningAlgorithmFromString(ip_algo);
     }),
     "Algorithm used to create initial partition: pool ")
+    ("i-balancing",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& ip_balancing) {
+      context.initial_partitioning.balancing =
+        kahypar::weightBalancingStrategyFromString(ip_balancing);
+    }),
+    "Balancing strategy for vertex weights:\n"
+    " - none\n"
+    " - prepacking"
+    "(default: none)")
     ("i-runs",
     po::value<uint32_t>(&context.initial_partitioning.nruns)->value_name("<uint32_t>"),
     "# initial partition trials");

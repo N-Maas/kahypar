@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "kahypar/definitions.h"
+#include "kahypar/partition/bin_packing.h"
 #include "kahypar/partition/context.h"
 #include "kahypar/partition/factories.h"
 #include "kahypar/partition/initial_partitioning/i_initial_partitioner.h"
@@ -139,11 +140,11 @@ static inline Context createContext(const Hypergraph& hg,
 
 static inline void partition(Hypergraph& hg, const Context& context) {
   auto extracted_init_hypergraph = ds::reindex(hg);
+  Hypergraph& init_hg = *extracted_init_hypergraph.first;
   std::vector<HypernodeID> mapping(std::move(extracted_init_hypergraph.second));
   double init_alpha = context.initial_partitioning.init_alpha;
   double best_imbalance = std::numeric_limits<double>::max();
-  std::vector<PartitionID> best_balanced_partition(
-    extracted_init_hypergraph.first->initialNumNodes(), 0);
+  std::vector<PartitionID> best_balanced_partition(init_hg.initialNumNodes(), 0);
 
   double fixed_vertex_subgraph_imbalance = 0.0;
   if (hg.numFixedVertices() > 0) {
@@ -151,10 +152,10 @@ static inline void partition(Hypergraph& hg, const Context& context) {
   }
 
   do {
-    extracted_init_hypergraph.first->resetPartitioning();
+    init_hg.resetPartitioning();
     // we do not want to use the community structure used during coarsening in initial partitioning
-    extracted_init_hypergraph.first->resetCommunities();
-    Context init_context = createContext(*extracted_init_hypergraph.first, context, init_alpha);
+    init_hg.resetCommunities();
+    Context init_context = createContext(init_hg, context, init_alpha);
 
     if (context.initial_partitioning.verbose_output) {
       LOG << "Calling Initial Partitioner:" << context.initial_partitioning.technique
@@ -173,22 +174,72 @@ static inline void partition(Hypergraph& hg, const Context& context) {
         LOG << "WARNING: Fixed vertex subgraph is imbalanced."
                " Switching to direct k-way initial partitioning!";
       }
+
+      // perform prepacking of heavy vertices
+      PartitionID rb_range_k = init_context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
+      if (init_context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking &&
+        (rb_range_k > 2) && (init_context.initial_partitioning.k == 2)) {
+        std::vector<HypernodeID> nodes = bin_packing::extract_nodes_with_descending_weight(init_hg);
+
+        ALWAYS_ASSERT((init_context.initial_partitioning.upper_allowed_partition_weight.size() == 2)
+          && (init_context.initial_partitioning.upper_allowed_partition_weight.size() == 2));
+
+        HypernodeWeight allowed_imbalance =
+          (init_context.initial_partitioning.upper_allowed_partition_weight[0]
+          - init_context.initial_partitioning.perfect_balance_partition_weight[0]
+          + init_context.initial_partitioning.upper_allowed_partition_weight[1]
+          - init_context.initial_partitioning.perfect_balance_partition_weight[1]) / rb_range_k;
+        size_t treshhold = bin_packing::calculate_heavy_nodes_treshhold(init_hg, nodes, rb_range_k, allowed_imbalance);
+        nodes.resize(treshhold);
+        std::vector<PartitionID> partitions(nodes.size(), -1);
+        // TODO test whether there is any fixed vertex
+        for (size_t i = 0; i < nodes.size(); ++i) {
+          HypernodeID hn = nodes[i];
+
+          if (init_hg.isFixedVertex(hn)) {
+            partitions[i] = init_hg.fixedVertexPartID(hn);
+          }
+        }
+
+        std::vector<HypernodeWeight> reserved_weights;
+        // handle uneven k
+        if ((rb_range_k % init_context.initial_partitioning.k) != 0) {
+          reserved_weights.reserve(init_context.initial_partitioning.k);
+
+          for (PartitionID p = 0; p < init_context.initial_partitioning.k; ++p) {
+            reserved_weights.push_back(init_context.initial_partitioning.upper_allowed_partition_weight[p]);
+          }
+          ASSERT(!reserved_weights.empty());
+          HypernodeWeight max = *std::max_element(reserved_weights.cbegin(), reserved_weights.cend());
+
+          // the bin packing algorithm requires the complement of the allowed weights
+          for (HypernodeWeight& w : reserved_weights) {
+            w = max - w;
+          }
+        }
+        partitions = bin_packing::two_level_packing(init_hg, nodes, init_context.initial_partitioning.k,
+                                                    rb_range_k, std::move(partitions), reserved_weights);
+        ASSERT(nodes.size() == partitions.size());
+
+        for (size_t i = 0; i < nodes.size(); ++i) {
+          init_hg.setFixedVertex(nodes[i], partitions[i]);
+        }
       // If the direct k-way flat initial partitioner is used we call the
       // corresponding initial partitioing algorithm, otherwise...
       std::unique_ptr<IInitialPartitioner> partitioner(
         InitialPartitioningFactory::getInstance().createObject(
           context.initial_partitioning.algo,
-          *extracted_init_hypergraph.first, init_context));
+          init_hg, init_context));
       partitioner->partition();
     } else {
       // ... we call the partitioner again with the new configuration.
-      partition::partition(* extracted_init_hypergraph.first, init_context);
+      partition::partition(init_hg, init_context);
     }
 
-    const double imbalance = metrics::imbalance(*extracted_init_hypergraph.first, context);
+    const double imbalance = metrics::imbalance(init_hg, context);
     if (imbalance < best_imbalance) {
-      for (const HypernodeID& hn : extracted_init_hypergraph.first->nodes()) {
-        best_balanced_partition[hn] = extracted_init_hypergraph.first->partID(hn);
+      for (const HypernodeID& hn : init_hg.nodes()) {
+        best_balanced_partition[hn] = init_hg.partID(hn);
       }
       best_imbalance = imbalance;
     }
@@ -206,8 +257,8 @@ static inline void partition(Hypergraph& hg, const Context& context) {
       } (), "The original hypergraph isn't unpartitioned!");
 
   // Apply the best balanced partition to the original hypergraph
-  for (const HypernodeID& hn : extracted_init_hypergraph.first->nodes()) {
-    PartitionID part = extracted_init_hypergraph.first->partID(hn);
+  for (const HypernodeID& hn : init_hg.nodes()) {
+    PartitionID part = init_hg.partID(hn);
     if (part != best_balanced_partition[hn]) {
       part = best_balanced_partition[hn];
     }

@@ -178,6 +178,12 @@ enum class FlowExecutionMode : uint8_t {
   UNDEFINED
 };
 
+enum class WeightBalancingStrategy : uint8_t {
+  none,
+  prepacking,
+  UNDEFINED
+};
+
 
 std::ostream& operator<< (std::ostream& os, const EvoReplaceStrategy& replace) {
   switch (replace) {
@@ -423,6 +429,16 @@ std::ostream& operator<< (std::ostream& os, const FlowExecutionMode& mode) {
   return os << static_cast<uint8_t>(mode);
 }
 
+std::ostream& operator<< (std::ostream& os, const WeightBalancingStrategy& balancing_strategy) {
+  switch (balancing_strategy) {
+    case WeightBalancingStrategy::none: return os << "none";
+    case WeightBalancingStrategy::prepacking: return os << "prepacking";
+    case WeightBalancingStrategy::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(balancing_strategy);
+}
+
 static EvoMutateStrategy mutateStrategyFromString(const std::string& strat) {
   if (strat == "new-initial-partitioning-vcycle") {
     return EvoMutateStrategy::new_initial_partitioning_vcycle;
@@ -663,5 +679,16 @@ static FlowExecutionMode flowExecutionPolicyFromString(const std::string& mode) 
   LOG << "No valid flow execution mode.";
   exit(0);
   return FlowExecutionMode::exponential;
+}
+
+static WeightBalancingStrategy weightBalancingStrategyFromString(const std::string& type) {
+  if (type == "none") {
+    return WeightBalancingStrategy::none;
+  } else if (type == "prepacking") {
+    return WeightBalancingStrategy::prepacking;
+  }
+  LOG << "Illegal option:" << type;
+  exit(0);
+  return WeightBalancingStrategy::prepacking;
 }
 }  // namespace kahypar

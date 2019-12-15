@@ -257,6 +257,7 @@ struct InitialPartitioningParameters {
   Mode mode = Mode::UNDEFINED;
   InitialPartitioningTechnique technique = InitialPartitioningTechnique::UNDEFINED;
   InitialPartitionerAlgorithm algo = InitialPartitionerAlgorithm::UNDEFINED;
+  WeightBalancingStrategy balancing = WeightBalancingStrategy::UNDEFINED;
   CoarseningParameters coarsening = { };
   LocalSearchParameters local_search = { };
   uint32_t nruns = std::numeric_limits<uint32_t>::max();
@@ -289,6 +290,7 @@ inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningPar
   str << "  Mode:                               " << params.mode << std::endl;
   str << "  Technique:                          " << params.technique << std::endl;
   str << "  Algorithm:                          " << params.algo << std::endl;
+  str << "  Balancing:                          " << params.balancing << std::endl;
   if (params.technique == InitialPartitioningTechnique::multilevel) {
     str << "IP Coarsening:                        " << std::endl;
     str << params.coarsening;
@@ -588,6 +590,7 @@ void checkDirectKwayMode(RefinementAlgorithm& algo, Objective& objective) {
   }
 }
 
+// TODO balancing
 static inline void sanityCheck(const Hypergraph& hypergraph, Context& context) {
   switch (context.partition.mode) {
     case Mode::recursive_bisection:
