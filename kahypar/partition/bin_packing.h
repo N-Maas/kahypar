@@ -274,5 +274,55 @@ namespace bin_packing {
 
         return i;
     }
+
+    static inline std::vector<PartitionID> apply_bin_packing_to_nodes(const Hypergraph& hg,
+                                                                      const Context& context,
+                                                                      const std::vector<HypernodeID>& nodes) {
+        std::vector<PartitionID> partitions(nodes.size(), -1);
+        if(hg.containsFixedVertices()) {
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                HypernodeID hn = nodes[i];
+
+                if (hg.isFixedVertex(hn)) {
+                    partitions[i] = hg.fixedVertexPartID(hn);
+                }
+            }
+        }
+
+        PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
+        std::vector<HypernodeWeight> reserved_weights;
+
+        // handle uneven k
+        if ((rb_range_k % context.initial_partitioning.k) != 0) {
+            reserved_weights.reserve(context.initial_partitioning.k);
+
+            for (PartitionID p = 0; p < context.initial_partitioning.k; ++p) {
+                reserved_weights.push_back(context.initial_partitioning.upper_allowed_partition_weight[p]);
+            }
+            ASSERT(!reserved_weights.empty());
+            HypernodeWeight max = *std::max_element(reserved_weights.cbegin(), reserved_weights.cend());
+
+            // the bin packing algorithm requires the complement of the allowed weights
+            for (HypernodeWeight& w : reserved_weights) {
+                w = max - w;
+            }
+        }
+        partitions = two_level_packing(hg, nodes, context.initial_partitioning.k,
+                                       rb_range_k, std::move(partitions), reserved_weights);
+
+        ASSERT(nodes.size() == partitions.size());
+        ASSERT([&]() {
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                HypernodeID hn = nodes[i];
+
+                if (hg.isFixedVertex(hn) && (hg.fixedVertexPartID(hn) != partitions[i])) {
+                    return false;
+                }
+            }
+            return true;
+        } (), "Partition of fixed vertex changed.");
+
+        return partitions;
+    }
 }
 }

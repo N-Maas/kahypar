@@ -92,42 +92,9 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
     const PartitionID unassigned_part = _context.initial_partitioning.unassigned_part;
     _context.initial_partitioning.unassigned_part = -1;
     Base::resetPartitioning();
-
     initializeNodes();
 
-    std::vector<PartitionID> partitions(_descending_nodes.size(), -1);
-    for (size_t i = 0; i < _descending_nodes.size(); ++i) {
-      HypernodeID hn = _descending_nodes[i];
-
-      if (_hg.isFixedVertex(hn)) {
-        partitions[i] = _hg.fixedVertexPartID(hn);
-      }
-    }
-
-    PartitionID num_bins = _context.partition.rb_upper_k - _context.partition.rb_lower_k + 1;
-    std::vector<HypernodeWeight> reserved_weights;
-
-    // handle uneven k
-    if ((num_bins % _context.initial_partitioning.k) != 0) {
-      reserved_weights.reserve(_context.initial_partitioning.k);
-
-      for (PartitionID p = 0; p < _context.initial_partitioning.k; ++p) {
-        reserved_weights.push_back(_context.initial_partitioning.upper_allowed_partition_weight[p]);
-      }
-      ASSERT(!reserved_weights.empty());
-      HypernodeWeight max = *std::max_element(reserved_weights.cbegin(), reserved_weights.cend());
-
-      // the bin packing algorithm requires the complement of the allowed weights
-      for (HypernodeWeight& w : reserved_weights) {
-        w = max - w;
-      }
-    }
-
-    // apply bin packing
-    partitions = bin_packing::two_level_packing(_hg, _descending_nodes, _context.initial_partitioning.k,
-                                                num_bins, std::move(partitions), reserved_weights);
-
-    ASSERT(partitions.size() == _descending_nodes.size(), "wrong size of partition ids");
+    std::vector<PartitionID> partitions = bin_packing::apply_bin_packing_to_nodes(_hg, _context, _descending_nodes);
 
     for (size_t i = 0; i < _descending_nodes.size(); ++i) {
       HypernodeID hn = _descending_nodes[i];

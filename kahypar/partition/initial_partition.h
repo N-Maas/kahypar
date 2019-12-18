@@ -138,6 +138,27 @@ static inline Context createContext(const Hypergraph& hg,
 }
 
 
+static inline void prepack_heavy_vertices(Hypergraph& hg, const Context& context, const PartitionID& rb_range_k) {
+  std::vector<HypernodeID> nodes = bin_packing::extract_nodes_with_descending_weight(hg);
+
+  ALWAYS_ASSERT((context.initial_partitioning.upper_allowed_partition_weight.size() == 2)
+    && (context.initial_partitioning.upper_allowed_partition_weight.size() == 2));
+
+  HypernodeWeight allowed_imbalance =
+    (context.initial_partitioning.upper_allowed_partition_weight[0]
+    - context.initial_partitioning.perfect_balance_partition_weight[0]
+    + context.initial_partitioning.upper_allowed_partition_weight[1]
+    - context.initial_partitioning.perfect_balance_partition_weight[1]) / rb_range_k;
+  size_t treshhold = bin_packing::calculate_heavy_nodes_treshhold(hg, nodes, rb_range_k, allowed_imbalance);
+  nodes.resize(treshhold);
+
+  std::vector<PartitionID> partitions = bin_packing::apply_bin_packing_to_nodes(hg, context, nodes);
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    hg.setFixedVertex(nodes[i], partitions[i]);
+  }
+}
+
+
 static inline void partition(Hypergraph& hg, const Context& context) {
   auto extracted_init_hypergraph = ds::reindex(hg);
   Hypergraph& init_hg = *extracted_init_hypergraph.first;
@@ -176,54 +197,12 @@ static inline void partition(Hypergraph& hg, const Context& context) {
       }
 
       // perform prepacking of heavy vertices
-      PartitionID rb_range_k = init_context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
+      PartitionID rb_range_k = init_context.partition.rb_upper_k - init_context.partition.rb_lower_k + 1;
       if (init_context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking &&
         (rb_range_k > 2) && (init_context.initial_partitioning.k == 2)) {
-        std::vector<HypernodeID> nodes = bin_packing::extract_nodes_with_descending_weight(init_hg);
+        prepack_heavy_vertices(init_hg, init_context, rb_range_k);
+      }
 
-        ALWAYS_ASSERT((init_context.initial_partitioning.upper_allowed_partition_weight.size() == 2)
-          && (init_context.initial_partitioning.upper_allowed_partition_weight.size() == 2));
-
-        HypernodeWeight allowed_imbalance =
-          (init_context.initial_partitioning.upper_allowed_partition_weight[0]
-          - init_context.initial_partitioning.perfect_balance_partition_weight[0]
-          + init_context.initial_partitioning.upper_allowed_partition_weight[1]
-          - init_context.initial_partitioning.perfect_balance_partition_weight[1]) / rb_range_k;
-        size_t treshhold = bin_packing::calculate_heavy_nodes_treshhold(init_hg, nodes, rb_range_k, allowed_imbalance);
-        nodes.resize(treshhold);
-        std::vector<PartitionID> partitions(nodes.size(), -1);
-        // TODO test whether there is any fixed vertex
-        for (size_t i = 0; i < nodes.size(); ++i) {
-          HypernodeID hn = nodes[i];
-
-          if (init_hg.isFixedVertex(hn)) {
-            partitions[i] = init_hg.fixedVertexPartID(hn);
-          }
-        }
-
-        std::vector<HypernodeWeight> reserved_weights;
-        // handle uneven k
-        if ((rb_range_k % init_context.initial_partitioning.k) != 0) {
-          reserved_weights.reserve(init_context.initial_partitioning.k);
-
-          for (PartitionID p = 0; p < init_context.initial_partitioning.k; ++p) {
-            reserved_weights.push_back(init_context.initial_partitioning.upper_allowed_partition_weight[p]);
-          }
-          ASSERT(!reserved_weights.empty());
-          HypernodeWeight max = *std::max_element(reserved_weights.cbegin(), reserved_weights.cend());
-
-          // the bin packing algorithm requires the complement of the allowed weights
-          for (HypernodeWeight& w : reserved_weights) {
-            w = max - w;
-          }
-        }
-        partitions = bin_packing::two_level_packing(init_hg, nodes, init_context.initial_partitioning.k,
-                                                    rb_range_k, std::move(partitions), reserved_weights);
-        ASSERT(nodes.size() == partitions.size());
-
-        for (size_t i = 0; i < nodes.size(); ++i) {
-          init_hg.setFixedVertex(nodes[i], partitions[i]);
-        }
       // If the direct k-way flat initial partitioner is used we call the
       // corresponding initial partitioing algorithm, otherwise...
       std::unique_ptr<IInitialPartitioner> partitioner(
