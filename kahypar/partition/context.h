@@ -268,9 +268,6 @@ struct InitialPartitioningParameters {
   HypernodeWeightVector upper_allowed_partition_weight = { };
   HypernodeWeightVector perfect_balance_partition_weight = { };
   PartitionID unassigned_part = 1;
-  // Is used to get a tighter balance constraint for initial partitioning.
-  // Before initial partitioning epsilon is set to init_alpha*epsilon.
-  double init_alpha = 1;
   // If pool initial partitioner is used, the first 13 bits of this number decides
   // which algorithms are used.
   unsigned int pool_type = 0b1011110110111;
