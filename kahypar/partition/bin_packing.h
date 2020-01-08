@@ -24,7 +24,7 @@
 
 #include <boost/range/adaptor/reversed.hpp>
 
-#include "kahypar/definitions.h"
+#include "kahypar/partition/context.h"
 #include "kahypar/datastructure/binary_heap.h"
 
 namespace kahypar {

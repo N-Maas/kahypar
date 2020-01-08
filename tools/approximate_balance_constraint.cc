@@ -68,7 +68,7 @@ HypernodeWeight calculate_worst_fit_decreasing_bin_size(
     }
   }
 
-  // the result is the biggest bin, e.g. the last element in the queue
+  // the result is the biggest bin, i.e. the last element in the queue
   while (bins.size() > 1) {
     bins.pop();
   }

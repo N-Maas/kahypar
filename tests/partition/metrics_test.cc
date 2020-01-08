@@ -104,6 +104,45 @@ class APartitionedHypergraph : public Test {
   std::unique_ptr<IRefiner> refiner;
 };
 
+class WeightedHypergraph : public Test {
+  public:
+    WeightedHypergraph() :
+    hypergraph(0, 0,
+                HyperedgeIndexVector { 0 },
+                HyperedgeVector {}) {
+    }
+
+    void initialize(const HypernodeWeightVector& weights,
+                    const std::vector<PartitionID>& partitions,
+                    const PartitionID& num_parts,
+                    const PartitionID& k) {
+      ASSERT(weights.size() == partitions.size());
+      hypergraph = Hypergraph(weights.size(), 0, HyperedgeIndexVector(weights.size() + 1, 0),
+                              HyperedgeVector {}, num_parts);
+
+      for(size_t i = 0; i < weights.size(); ++i) {
+          hypergraph.setNodeWeight(i, weights[i]);
+          hypergraph.setNodePart(i, partitions[i]);
+      }
+
+      context.initial_partitioning.k = num_parts;
+      context.partition.k = num_parts;
+      context.partition.rb_upper_k = k - 1;
+      context.partition.rb_lower_k = 0;
+
+      PartitionID k_per_part = k / num_parts;
+      PartitionID bigger_parts = k % num_parts;
+      HypernodeWeight avgPartWeight = (hypergraph.totalWeight() + k - 1) / k;
+      for(PartitionID i = 0; i < num_parts; ++i) {
+        context.partition.perfect_balance_part_weights.push_back(
+          (i < bigger_parts ? k_per_part + 1 : k_per_part) * avgPartWeight);
+      }
+    }
+
+  Hypergraph hypergraph;
+  Context context;
+};
+
 
 TEST_F(AnUnPartitionedHypergraph, HasHyperedgeCutZero) {
   ASSERT_THAT(hyperedgeCut(hypergraph), Eq(0));
@@ -119,6 +158,17 @@ TEST_F(TheDemoHypergraph, HasAvgHyperedgeDegree3) {
 
 TEST_F(TheDemoHypergraph, HasAvgHypernodeDegree12Div7) {
   ASSERT_THAT(avgHypernodeDegree(hypergraph), DoubleEq(12.0 / 7));
+}
+
+TEST_F(WeightedHypergraph, BinImbalance0) {
+  initialize({1, 1}, {0, 1}, 2, 2);
+  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(0));
+
+  initialize({1, 2, 1, 1, 1, 2}, {0, 1, 0, 0, 0, 1}, 2, 4);
+  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(0));
+
+  initialize({2, 3, 1, 3}, {0, 1, 0, 2}, 3, 3);
+  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(0));
 }
 }  // namespace metrics
 }  // namespace kahypar
