@@ -295,7 +295,7 @@ static inline double finalLevelBinImbalance(const Hypergraph& hypergraph, const 
   PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
   bool equal_parts = (rb_range_k % num_parts) == 0;
   PartitionID k_per_part = rb_range_k / num_parts;
-  HypernodeWeight avgPartWeight = (hypergraph.totalWeight() + rb_range_k - 1) / rb_range_k;
+  HypernodeWeight avgPartWeight = (hypergraph.totalWeight() + num_parts - 1) / num_parts;
 
   // initialize queues
   std::vector<BinaryMinHeap<PartitionID, HypernodeWeight>> part_queues;
@@ -303,6 +303,7 @@ static inline double finalLevelBinImbalance(const Hypergraph& hypergraph, const 
     // TODO is this good handling of unequal partitions?
     PartitionID current_k = equal_parts || (context.partition.perfect_balance_part_weights[i] < avgPartWeight) ?
                             k_per_part : k_per_part + 1;
+
     BinaryMinHeap<PartitionID, HypernodeWeight> queue(current_k);
     for(PartitionID j = 0; j < current_k; ++j) {
         queue.push(j, 0);
@@ -331,7 +332,8 @@ static inline double finalLevelBinImbalance(const Hypergraph& hypergraph, const 
     max = std::max(queue.getKey(queue.top()), max);
   }
 
-  return std::max(0.0, (max / static_cast<double>(avgPartWeight)) - 1);
+  HypernodeWeight avgBinWeight = (hypergraph.totalWeight() + rb_range_k - 1) / rb_range_k;
+  return std::max(0.0, (max / static_cast<double>(avgBinWeight)) - 1);
 }
 
 }  // namespace metrics
