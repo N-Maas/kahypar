@@ -50,6 +50,10 @@ class RandomInitialPartitioner : public IInitialPartitioner,
  private:
   void partitionImpl() override final {
     Base::multipleRunsInitialPartitioning();
+
+    if (_context.initial_partitioning.balancing == WeightBalancingStrategy::restart_ip_algorithm) {
+      Base::restartAtImbalancedBins();
+    }
   }
 
   void initialPartition() {

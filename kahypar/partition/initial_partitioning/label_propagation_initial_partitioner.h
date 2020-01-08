@@ -71,6 +71,10 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
 
   void partitionImpl() override final {
     Base::multipleRunsInitialPartitioning();
+
+    if (_context.initial_partitioning.balancing == WeightBalancingStrategy::restart_ip_algorithm) {
+      Base::restartAtImbalancedBins();
+    }
   }
 
   void initialPartition() {

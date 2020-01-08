@@ -181,6 +181,7 @@ enum class FlowExecutionMode : uint8_t {
 enum class WeightBalancingStrategy : uint8_t {
   none,
   prepacking,
+  restart_ip_algorithm,
   UNDEFINED
 };
 
@@ -433,6 +434,7 @@ std::ostream& operator<< (std::ostream& os, const WeightBalancingStrategy& balan
   switch (balancing_strategy) {
     case WeightBalancingStrategy::none: return os << "none";
     case WeightBalancingStrategy::prepacking: return os << "prepacking";
+    case WeightBalancingStrategy::restart_ip_algorithm: return os << "restart_ip_algorithm";
     case WeightBalancingStrategy::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -686,6 +688,8 @@ static WeightBalancingStrategy weightBalancingStrategyFromString(const std::stri
     return WeightBalancingStrategy::none;
   } else if (type == "prepacking") {
     return WeightBalancingStrategy::prepacking;
+  } else if (type == "restart_ip_algorithm") {
+    return WeightBalancingStrategy::restart_ip_algorithm;
   }
   LOG << "Illegal option:" << type;
   exit(0);

@@ -261,6 +261,15 @@ class InitialPartitionerBase {
     }
   }
 
+  // TODO: This implementation is rather wasteful, as the prepacking of the vertices could be cached.
+  void restartAtImbalancedBins() {
+    if (metrics::finalLevelBinImbalance(_hg, _context) > _context.partition.epsilon) {
+      PartitionID rb_range_k = _context.partition.rb_upper_k - _context.partition.rb_lower_k + 1;
+      bin_packing::prepack_heavy_vertices(_hg, _context, rb_range_k);
+      multipleRunsInitialPartitioning();
+    }
+  }
+
   HypernodeID getUnassignedNode() {
     HypernodeID unassigned_node = kInvalidNode;
     for (size_t i = 0; i < _unassigned_node_bound; ++i) {
