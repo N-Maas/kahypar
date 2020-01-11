@@ -281,6 +281,7 @@ static inline void connectivityStats(const Hypergraph& hypergraph,
   }
 }
 
+// TODO refactor with bin_packing::binImbalance
 // Assumes that the final partitions are of equal size (is this always true?).
 static inline double finalLevelBinImbalance(const Hypergraph& hypergraph, const Context& context) {
   using kahypar::ds::BinaryMinHeap;

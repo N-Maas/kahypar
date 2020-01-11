@@ -389,8 +389,19 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     }),
     "Balancing strategy for vertex weights:\n"
     " - none\n"
-    " - prepacking"
+    " - prepacking\n"
+    " - restart_ip_algorithm"
     "(default: none)")
+    ("i-epsilon-type",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& ip_e_type) {
+      context.initial_partitioning.e_type =
+        kahypar::epsilonTypeFromString(ip_e_type);
+    }),
+    "Calculation of epsilon value for bisections:\n"
+    " - flat\n"
+    " - from_bin_imbalance"
+    "(default: flat)")
     ("i-runs",
     po::value<uint32_t>(&context.initial_partitioning.nruns)->value_name("<uint32_t>"),
     "# initial partition trials");

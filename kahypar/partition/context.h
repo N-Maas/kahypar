@@ -258,6 +258,7 @@ struct InitialPartitioningParameters {
   InitialPartitioningTechnique technique = InitialPartitioningTechnique::UNDEFINED;
   InitialPartitionerAlgorithm algo = InitialPartitionerAlgorithm::UNDEFINED;
   WeightBalancingStrategy balancing = WeightBalancingStrategy::UNDEFINED;
+  EpsilonType e_type = EpsilonType::UNDEFINED;
   CoarseningParameters coarsening = { };
   LocalSearchParameters local_search = { };
   uint32_t nruns = std::numeric_limits<uint32_t>::max();
@@ -268,6 +269,7 @@ struct InitialPartitioningParameters {
   HypernodeWeightVector upper_allowed_partition_weight = { };
   HypernodeWeightVector perfect_balance_partition_weight = { };
   PartitionID unassigned_part = 1;
+  double current_bin_imbalance = 0.0;
   // If pool initial partitioner is used, the first 13 bits of this number decides
   // which algorithms are used.
   unsigned int pool_type = 0b1011110110111;
@@ -288,6 +290,7 @@ inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningPar
   str << "  Technique:                          " << params.technique << std::endl;
   str << "  Algorithm:                          " << params.algo << std::endl;
   str << "  Balancing:                          " << params.balancing << std::endl;
+  str << "  Epsilon type:                       " << params.e_type << std::endl;
   if (params.technique == InitialPartitioningTechnique::multilevel) {
     str << "IP Coarsening:                        " << std::endl;
     str << params.coarsening;
@@ -587,7 +590,7 @@ void checkDirectKwayMode(RefinementAlgorithm& algo, Objective& objective) {
   }
 }
 
-// TODO balancing
+// TODO balancing, e_type
 static inline void sanityCheck(const Hypergraph& hypergraph, Context& context) {
   switch (context.partition.mode) {
     case Mode::recursive_bisection:

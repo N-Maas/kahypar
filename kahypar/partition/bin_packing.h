@@ -327,24 +327,46 @@ namespace bin_packing {
 
 
     static inline void prepack_heavy_vertices(Hypergraph& hg, const Context& context, const PartitionID& rb_range_k) {
-    std::vector<HypernodeID> nodes = extract_nodes_with_descending_weight(hg);
+        std::vector<HypernodeID> nodes = extract_nodes_with_descending_weight(hg);
 
-    ALWAYS_ASSERT((context.initial_partitioning.upper_allowed_partition_weight.size() == 2)
-        && (context.initial_partitioning.upper_allowed_partition_weight.size() == 2));
+        ALWAYS_ASSERT((context.initial_partitioning.upper_allowed_partition_weight.size() == 2)
+            && (context.initial_partitioning.upper_allowed_partition_weight.size() == 2));
 
-    HypernodeWeight allowed_imbalance =
-        (context.initial_partitioning.upper_allowed_partition_weight[0]
-        - context.initial_partitioning.perfect_balance_partition_weight[0]
-        + context.initial_partitioning.upper_allowed_partition_weight[1]
-        - context.initial_partitioning.perfect_balance_partition_weight[1]) / rb_range_k;
-    size_t treshhold = calculate_heavy_nodes_treshhold(hg, nodes, rb_range_k, allowed_imbalance);
+        HypernodeWeight allowed_imbalance =
+            (context.initial_partitioning.upper_allowed_partition_weight[0]
+            - context.initial_partitioning.perfect_balance_partition_weight[0]
+            + context.initial_partitioning.upper_allowed_partition_weight[1]
+            - context.initial_partitioning.perfect_balance_partition_weight[1]) / rb_range_k;
+        size_t treshhold = calculate_heavy_nodes_treshhold(hg, nodes, rb_range_k, allowed_imbalance);
 
-    nodes.resize(treshhold);
-    std::vector<PartitionID> partitions = apply_bin_packing_to_nodes(hg, context, nodes);
+        nodes.resize(treshhold);
+        std::vector<PartitionID> partitions = apply_bin_packing_to_nodes(hg, context, nodes);
 
-    for (size_t i = 0; i < nodes.size(); ++i) {
-        hg.setFixedVertex(nodes[i], partitions[i]);
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            hg.setFixedVertex(nodes[i], partitions[i]);
+        }
     }
+
+    // TODO refactor with metrics::finalLevelBinImbalance
+    static inline HypernodeWeight maxBinWeight(const Hypergraph& hypergraph, const PartitionID& rb_range_k) {
+        // initialize queue
+        BinaryMinHeap<PartitionID, HypernodeWeight> queue(rb_range_k);
+        for(PartitionID j = 0; j < rb_range_k; ++j) {
+                queue.push(j, 0);
+            }
+
+        // assign nodes
+        std::vector<HypernodeID> hypernodes = kahypar::bin_packing::extract_nodes_with_descending_weight(hypergraph);
+        for(const HypernodeID& hn : hypernodes) {
+            PartitionID bin = queue.top();
+            queue.increaseKeyBy(bin, hypergraph.nodeWeight(hn));
+        }
+
+        // the maximum is the biggest bin, i.e. the last element in the queue
+        while (queue.size() > 1) {
+            queue.pop();
+        }
+        return queue.getKey(queue.top());
     }
 }
 }
