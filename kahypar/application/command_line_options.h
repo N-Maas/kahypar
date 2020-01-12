@@ -400,7 +400,9 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     }),
     "Calculation of epsilon value for bisections:\n"
     " - flat\n"
-    " - from_bin_imbalance"
+    " - bin_restricted\n"
+    " - bin_relaxed\n"
+    " - combined"
     "(default: flat)")
     ("i-runs",
     po::value<uint32_t>(&context.initial_partitioning.nruns)->value_name("<uint32_t>"),

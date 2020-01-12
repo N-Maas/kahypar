@@ -83,13 +83,18 @@ static inline double calculateRelaxedEpsilon(const HypernodeWeight original_hype
   return std::min(0.99, std::max(std::pow(base, 1.0 / ceil(log2(static_cast<double>(k)))) - 1.0,0.0));
 }
 
-static inline double calculateEpsilonFromBinImbalance(const HypernodeWeight original_hypergraph_weight,
-                                                      const HypernodeWeight max_bin,
+static inline double calculateEpsilonFromBinImbalance(const double current_bin_imbalance,
                                                       const PartitionID k,
                                                       const Context& original_context) {
-  double base = ceil(static_cast<double>(original_hypergraph_weight) / original_context.partition.k)
-                / static_cast<double>(max_bin) * (1.0 + original_context.partition.epsilon);
+  double base = (1.0 + original_context.partition.epsilon) / current_bin_imbalance;
   return std::min(0.99, std::max(std::pow(base, 1.0 / ceil(log2(static_cast<double>(k)))) - 1.0,0.0));
+}
+
+// returns 1 + e, relative to maximum bin of bin packing result
+static inline double imbalanceValue(const HypernodeWeight original_hypergraph_weight,
+                                    const HypernodeWeight max_bin,
+                                    const Context& original_context) {
+  return static_cast<double>(max_bin) / ceil(static_cast<double>(original_hypergraph_weight) / original_context.partition.k);
 }
 
 static inline Context createCurrentBisectionContext(const Context& original_context,
@@ -102,15 +107,41 @@ static inline Context createCurrentBisectionContext(const Context& original_cont
   Context current_context(original_context);
   current_context.partition.k = 2;
 
-  if(original_context.initial_partitioning.e_type == EpsilonType::from_bin_imbalance && (current_k > 2)) {
+  if ((original_context.initial_partitioning.e_type == EpsilonType::bin_restricted && (current_k > 2))
+      || original_context.initial_partitioning.e_type == EpsilonType::bin_relaxed
+      || original_context.initial_partitioning.e_type == EpsilonType::combined) {
+    HypernodeWeight org_weight = original_hypergraph.totalWeight();
     HypernodeWeight current_max_bin = bin_packing::maxBinWeight(current_hypergraph, current_k);
-    current_context.partition.epsilon = calculateEpsilonFromBinImbalance(original_hypergraph.totalWeight(),
-                                                                          current_max_bin, current_k, original_context);
+    double current_imb = imbalanceValue(org_weight, current_max_bin, original_context);
+    double bin_imb_e = calculateEpsilonFromBinImbalance(current_imb, current_k, original_context);
+    current_context.initial_partitioning.bin_epsilon = bin_imb_e;
     current_context.initial_partitioning.current_max_bin = current_max_bin;
+
+    switch (original_context.initial_partitioning.e_type) {
+      case EpsilonType::bin_restricted: {
+        current_context.partition.epsilon = bin_imb_e;
+        break;
+      }
+      case EpsilonType::bin_relaxed: {
+        current_context.partition.epsilon = current_imb * bin_imb_e;
+        break;
+      }
+      case EpsilonType::combined: {
+        current_context.partition.epsilon = calculateRelaxedEpsilon(org_weight,
+                                                current_hypergraph.totalWeight(),
+                                                current_k, original_context);
+        break;
+      }
+      default: {
+        ALWAYS_ASSERT(false, "error - impossible case");
+      }
+    }
+    current_context.partition.epsilon = bin_imb_e;
   } else {
     current_context.partition.epsilon = calculateRelaxedEpsilon(original_hypergraph.totalWeight(),
                                                                 current_hypergraph.totalWeight(),
                                                                 current_k, original_context);
+    current_context.initial_partitioning.bin_epsilon = current_context.partition.epsilon;
     current_context.initial_partitioning.current_max_bin = ceil(static_cast<double>(current_hypergraph.totalWeight()) / current_k);
   }
   ASSERT(original_context.partition.use_individual_part_weights ||

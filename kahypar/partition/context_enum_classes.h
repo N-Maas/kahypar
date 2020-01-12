@@ -187,7 +187,9 @@ enum class WeightBalancingStrategy : uint8_t {
 
 enum class EpsilonType : uint8_t {
   flat,
-  from_bin_imbalance,
+  bin_restricted,
+  bin_relaxed,
+  combined,
   UNDEFINED
 };
 
@@ -450,7 +452,9 @@ std::ostream& operator<< (std::ostream& os, const WeightBalancingStrategy& balan
 std::ostream& operator<< (std::ostream& os, const EpsilonType& e_type) {
   switch (e_type) {
     case EpsilonType::flat: return os << "flat";
-    case EpsilonType::from_bin_imbalance: return os << "from_bin_imbalance";
+    case EpsilonType::bin_restricted: return os << "bin_restricted";
+    case EpsilonType::bin_relaxed: return os << "bin_relaxed";
+    case EpsilonType::combined: return os << "combined";
     case EpsilonType::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -715,8 +719,12 @@ static WeightBalancingStrategy weightBalancingStrategyFromString(const std::stri
 static EpsilonType epsilonTypeFromString(const std::string& type) {
   if (type == "flat") {
     return EpsilonType::flat;
-  } else if (type == "from_bin_imbalance") {
-    return EpsilonType::from_bin_imbalance;
+  } else if (type == "bin_restricted") {
+    return EpsilonType::bin_restricted;
+  } else if (type == "bin_relaxed") {
+    return EpsilonType::bin_relaxed;
+  } else if (type == "combined") {
+    return EpsilonType::combined;
   }
   LOG << "Illegal option:" << type;
   exit(0);
