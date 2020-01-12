@@ -111,6 +111,7 @@ static inline Context createCurrentBisectionContext(const Context& original_cont
       || original_context.initial_partitioning.e_type == EpsilonType::bin_relaxed
       || original_context.initial_partitioning.e_type == EpsilonType::combined) {
     HypernodeWeight org_weight = original_hypergraph.totalWeight();
+    HypernodeWeight curr_weight = current_hypergraph.totalWeight();
     HypernodeWeight current_max_bin = bin_packing::maxBinWeight(current_hypergraph, current_k);
     double current_imb = imbalanceValue(org_weight, current_max_bin, original_context);
     double bin_imb_e = calculateEpsilonFromBinImbalance(current_imb, current_k, original_context);
@@ -123,20 +124,18 @@ static inline Context createCurrentBisectionContext(const Context& original_cont
         break;
       }
       case EpsilonType::bin_relaxed: {
-        current_context.partition.epsilon = current_imb * bin_imb_e;
+        current_context.partition.epsilon = (1.0 + bin_imb_e) * current_max_bin /
+                                            ceil(static_cast<double>(curr_weight) / current_k) - 1;
         break;
       }
       case EpsilonType::combined: {
-        current_context.partition.epsilon = calculateRelaxedEpsilon(org_weight,
-                                                current_hypergraph.totalWeight(),
-                                                current_k, original_context);
+        current_context.partition.epsilon = calculateRelaxedEpsilon(org_weight, curr_weight, current_k, original_context);
         break;
       }
       default: {
         ALWAYS_ASSERT(false, "error - impossible case");
       }
     }
-    current_context.partition.epsilon = bin_imb_e;
   } else {
     current_context.partition.epsilon = calculateRelaxedEpsilon(original_hypergraph.totalWeight(),
                                                                 current_hypergraph.totalWeight(),

@@ -314,8 +314,6 @@ TEST_F(BinPackingTest, UnevenAndFixed) {
   ASSERT_EQ(result.at(4), 1);
 }
 
-// TODO complex test for uneven
-
 TEST_F(BinPackingTest, ExtractNodes) {
   initializeWeights({});
 
@@ -335,22 +333,29 @@ TEST_F(BinPackingTest, ExtractNodes) {
 
 TEST_F(BinPackingTest, TreshholdBase) {
   initializeWeights({6, 5, 4, 3, 2, 1});
+  std::pair<size_t, HypernodeWeight> zero_pair(0, 0);
 
-  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {}, 1, 0), 0);
-  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {}, 3, 0), 0);
-  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {}, 4, 1), 0);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {}, 1, 0), zero_pair);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {}, 3, 0), zero_pair);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {}, 4, 1), zero_pair);
 
-  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 5}, 4, 0), 2);
-  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 5}, 4, 1), 1);
-  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 1, 2, 3, 4, 5}, 4, 2), 1);
+  std::pair<size_t, HypernodeWeight> two_one(2, 1);
+  std::pair<size_t, HypernodeWeight> one_one(1, 1);
+  std::pair<size_t, HypernodeWeight> one_two(1, 2);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 5}, 4, 0), two_one);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 5}, 4, 1), one_one);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 1, 2, 3, 4, 5}, 4, 2), one_two);
 }
 
 TEST_F(BinPackingTest, TreshholdComplex) {
   initializeWeights({22, 18, 17, 8, 7, 3, 1, 1});
 
-  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 5, 6, 7}, 4, 2), 1);
-  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7}, 4, 2), 5);
-  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7}, 4, 4), 3);
+  std::pair<size_t, HypernodeWeight> one_two(1, 2);
+  std::pair<size_t, HypernodeWeight> five_two(5, 2);
+  std::pair<size_t, HypernodeWeight> three_four(3, 4);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 5, 6, 7}, 4, 2), one_two);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7}, 4, 2), five_two);
+  ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7}, 4, 4), three_four);
 }
 
 }  // namespace kahypar
