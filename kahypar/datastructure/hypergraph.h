@@ -1272,6 +1272,21 @@ class GenericHypergraph {
   }
 
   /*!
+   * Set block ID of hypernode hn to a fixed block of the partition.
+   * Such hypernodes should be placed in block id in the final partition.
+   */
+  void setVertexNotFixed(const HypernodeID hn) {
+    ASSERT(!hypernode(hn).isDisabled(), "Hypernode" << hn << "is disabled");
+    ASSERT(isFixedVertex(hn), "Hypernode " << hn << " is not a fixed vertex");
+    ASSERT(_fixed_vertices && (_fixed_vertex_part_id.size() > hn), "Fixed vertices not initialized.");
+    PartitionID id = _fixed_vertex_part_id[hn];
+    _fixed_vertices->remove(hn);
+    _fixed_vertex_part_id[hn] = kInvalidPartition;
+    _part_info[id].fixed_vertex_weight -= nodeWeight(hn);
+    _fixed_vertex_total_weight -= nodeWeight(hn);
+  }
+
+  /*!
    * Removes a hypernode from the hypergraph.
    *
    * This operations leaves the incidence structure of u intact. It only

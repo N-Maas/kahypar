@@ -39,6 +39,8 @@ static inline void partition(Hypergraph& hypergraph,
                              ICoarsener& coarsener,
                              IRefiner& refiner,
                              const Context& context) {
+  // TODO is this correct?!
+  ALWAYS_ASSERT(!hypergraph.containsFixedVertices(), "Fixed vertices not allowed here.");
   io::printCoarseningBanner(context);
 
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -121,6 +123,14 @@ static inline void partition(Hypergraph& hypergraph,
 
   Timer::instance().add(context, Timepoint::local_search,
                         std::chrono::duration<double>(end - start).count());
+
+  if (hypergraph.containsFixedVertices()) {
+    for (const HypernodeID& hn : hypergraph.nodes()) {
+      if (hypergraph.isFixedVertex(hn)) {
+        hypergraph.setVertexNotFixed(hn);
+      }
+    }
+  }
 
   io::printLocalSearchResults(context, hypergraph);
 }

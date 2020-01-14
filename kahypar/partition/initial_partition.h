@@ -202,6 +202,10 @@ static inline void partition(Hypergraph& hg, const Context& context) {
   for (const HypernodeID& hn : init_hg.nodes()) {
     PartitionID part = init_hg.partID(hn);
     hg.setNodePart(mapping[hn], part);
+
+    if (init_hg.isFixedVertex(hn)) {
+      hg.setFixedVertex(mapping[hn], part);
+    }
   }
 
   // Stats of initial partitioning are added in doUncoarsen
