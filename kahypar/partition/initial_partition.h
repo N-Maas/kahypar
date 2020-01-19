@@ -170,12 +170,6 @@ static inline void partition(Hypergraph& hg, const Context& context) {
               " Switching to direct k-way initial partitioning!";
     }
 
-    // perform prepacking of heavy vertices
-    PartitionID rb_range_k = init_context.partition.rb_upper_k - init_context.partition.rb_lower_k + 1;
-    if (init_context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking &&
-      (rb_range_k > 2) && (init_context.initial_partitioning.k == 2)) {
-      bin_packing::prepack_heavy_vertices(init_hg, init_context, rb_range_k);
-    }
 
     // If the direct k-way flat initial partitioner is used we call the
     // corresponding initial partitioing algorithm, otherwise...

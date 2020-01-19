@@ -331,10 +331,10 @@ namespace bin_packing {
     }
 
 
-    static inline void prepack_heavy_vertices(Hypergraph& hg, Context& context, const PartitionID& rb_range_k) {
+    static inline void prepack_heavy_vertices(Hypergraph& hg, const Context& context, const PartitionID& rb_range_k) {
         std::vector<HypernodeID> nodes = extract_nodes_with_descending_weight(hg);
 
-        std::vector<HypernodeWeight>& allowed_weights = context.initial_partitioning.upper_allowed_partition_weight;
+        const std::vector<HypernodeWeight>& allowed_weights = context.initial_partitioning.upper_allowed_partition_weight;
         const std::vector<HypernodeWeight>& perfect_weights = context.initial_partitioning.perfect_balance_partition_weight;
 
         ALWAYS_ASSERT((allowed_weights.size() == 2) && (perfect_weights.size() == 2));
@@ -360,8 +360,6 @@ namespace bin_packing {
             std::swap(k0, k1);
         }
 
-        allowed_weights[0] = std::min(allowed_weights[0], k0 * upperBinWeight);
-        allowed_weights[1] = std::min(allowed_weights[1], k1 * upperBinWeight);
     }
 
     // TODO refactor with metrics::finalLevelBinImbalance

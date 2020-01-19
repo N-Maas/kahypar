@@ -125,6 +125,7 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
                                               << ", but is actually in" << _hg.partID(hn) << ".");
     }
 
+    _hg.initializeNumCutHyperedges();
     _context.initial_partitioning.unassigned_part = unassigned_part;
 
     ASSERT([&]() {
