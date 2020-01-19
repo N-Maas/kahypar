@@ -103,6 +103,10 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
     for (size_t i = 0; i < _descending_nodes.size(); ++i) {
       HypernodeID hn = _descending_nodes[i];
 
+      if(_hg.isFixedVertex(hn)) {
+        continue;
+      }
+
       bool assigned = false;
       PartitionID p = partitions[i];
       do {
