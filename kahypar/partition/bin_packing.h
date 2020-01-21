@@ -324,7 +324,7 @@ namespace bin_packing {
             partition_packer.addWeight(i, max_partition - max_allowed_partition_weights[i]);
         }
 
-        // read bins from kbin queue
+        // read bins from the bin packer
         std::vector<PartitionID> kbin_ascending_ordering = bin_packer.extractBinsAscending();
 
         ASSERT(kbin_ascending_ordering.size() == rb_range_k);
@@ -518,9 +518,11 @@ namespace bin_packing {
 
         PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
         HypernodeWeight max_bin_weight = floor(context.initial_partitioning.current_max_bin * context.initial_partitioning.bin_epsilon);
-        // TODO
-        partitions = two_level_packing<WorstFit>(hg, nodes, context.initial_partitioning.upper_allowed_partition_weight,
-                                                 rb_range_k, max_bin_weight, std::move(partitions));
+        partitions = context.initial_partitioning.bp_algo == BinPackingAlgorithm::worst_fit ?
+            two_level_packing<WorstFit>(hg, nodes, context.initial_partitioning.upper_allowed_partition_weight,
+                                        rb_range_k, max_bin_weight, std::move(partitions)) :
+            two_level_packing<FirstFit>(hg, nodes, context.initial_partitioning.upper_allowed_partition_weight,
+                                        rb_range_k, max_bin_weight, std::move(partitions));
 
         ASSERT(nodes.size() == partitions.size());
         ASSERT([&]() {
@@ -552,8 +554,8 @@ namespace bin_packing {
         HypernodeWeight allowed_imbalance = FACTOR * floor(context.initial_partitioning.current_max_bin * context.initial_partitioning.bin_epsilon);
 
         std::pair<size_t, HypernodeWeight> treshhold = optimistic ? 
-            calculate_heavy_nodes_treshhold_optimistic(hg, nodes, rb_range_k, allowed_imbalance)
-            : calculate_heavy_nodes_treshhold_pessimistic(hg, nodes, rb_range_k, allowed_imbalance);
+            calculate_heavy_nodes_treshhold_optimistic(hg, nodes, rb_range_k, allowed_imbalance) :
+            calculate_heavy_nodes_treshhold_pessimistic(hg, nodes, rb_range_k, allowed_imbalance);
 
         nodes.resize(treshhold.first);
         std::vector<PartitionID> partitions = apply_bin_packing_to_nodes(hg, context, nodes);

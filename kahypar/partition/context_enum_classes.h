@@ -194,6 +194,12 @@ enum class EpsilonType : uint8_t {
   UNDEFINED
 };
 
+enum class BinPackingAlgorithm : uint8_t {
+  worst_fit,
+  first_fit,
+  UNDEFINED
+};
+
 
 std::ostream& operator<< (std::ostream& os, const EvoReplaceStrategy& replace) {
   switch (replace) {
@@ -461,6 +467,16 @@ std::ostream& operator<< (std::ostream& os, const EpsilonType& e_type) {
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(e_type);
+}
+
+std::ostream& operator<< (std::ostream& os, const BinPackingAlgorithm& bp_algo) {
+  switch (bp_algo) {
+    case BinPackingAlgorithm::worst_fit: return os << "worst_fit";
+    case BinPackingAlgorithm::first_fit: return os << "first_fit";
+    case BinPackingAlgorithm::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(bp_algo);
 }
 
 static EvoMutateStrategy mutateStrategyFromString(const std::string& strat) {
@@ -733,5 +749,16 @@ static EpsilonType epsilonTypeFromString(const std::string& type) {
   LOG << "Illegal option:" << type;
   exit(0);
   return EpsilonType::flat;
+}
+
+static BinPackingAlgorithm binPackingAlgorithmFromString(const std::string& type) {
+  if (type == "worst_fit") {
+    return BinPackingAlgorithm::worst_fit;
+  } else if (type == "first_fit") {
+    return BinPackingAlgorithm::first_fit;
+  }
+  LOG << "Illegal option:" << type;
+  exit(0);
+  return BinPackingAlgorithm::UNDEFINED;
 }
 }  // namespace kahypar

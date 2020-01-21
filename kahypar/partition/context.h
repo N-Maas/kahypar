@@ -259,6 +259,7 @@ struct InitialPartitioningParameters {
   InitialPartitionerAlgorithm algo = InitialPartitionerAlgorithm::UNDEFINED;
   WeightBalancingStrategy balancing = WeightBalancingStrategy::UNDEFINED;
   EpsilonType e_type = EpsilonType::UNDEFINED;
+  BinPackingAlgorithm bp_algo = BinPackingAlgorithm::UNDEFINED;
   CoarseningParameters coarsening = { };
   LocalSearchParameters local_search = { };
   uint32_t nruns = std::numeric_limits<uint32_t>::max();

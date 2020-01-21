@@ -405,6 +405,16 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     " - fully_relaxed\n"
     " - combined"
     "(default: flat)")
+    ("i-bin-packing-algorithm",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& ip_bp_algo) {
+      context.initial_partitioning.bp_algo =
+        kahypar::binPackingAlgorithmFromString(ip_bp_algo);
+    }),
+    "Bin packing algorithm:\n"
+    " - worst_fit\n"
+    " - first_fit"
+    "(default: worst_fit)")
     ("i-runs",
     po::value<uint32_t>(&context.initial_partitioning.nruns)->value_name("<uint32_t>"),
     "# initial partition trials");
