@@ -180,8 +180,8 @@ enum class FlowExecutionMode : uint8_t {
 
 enum class WeightBalancingStrategy : uint8_t {
   none,
-  prepacking,
-  restart_ip_algorithm,
+  prepacking_pessimistic,
+  prepacking_optimistic,
   UNDEFINED
 };
 
@@ -189,6 +189,7 @@ enum class EpsilonType : uint8_t {
   flat,
   bin_restricted,
   bin_relaxed,
+  fully_relaxed,
   combined,
   UNDEFINED
 };
@@ -441,8 +442,8 @@ std::ostream& operator<< (std::ostream& os, const FlowExecutionMode& mode) {
 std::ostream& operator<< (std::ostream& os, const WeightBalancingStrategy& balancing_strategy) {
   switch (balancing_strategy) {
     case WeightBalancingStrategy::none: return os << "none";
-    case WeightBalancingStrategy::prepacking: return os << "prepacking";
-    case WeightBalancingStrategy::restart_ip_algorithm: return os << "restart_ip_algorithm";
+    case WeightBalancingStrategy::prepacking_pessimistic: return os << "prepacking_pessimistic";
+    case WeightBalancingStrategy::prepacking_optimistic: return os << "prepacking_optimistic";
     case WeightBalancingStrategy::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -454,6 +455,7 @@ std::ostream& operator<< (std::ostream& os, const EpsilonType& e_type) {
     case EpsilonType::flat: return os << "flat";
     case EpsilonType::bin_restricted: return os << "bin_restricted";
     case EpsilonType::bin_relaxed: return os << "bin_relaxed";
+    case EpsilonType::fully_relaxed: return os << "fully_relaxed";
     case EpsilonType::combined: return os << "combined";
     case EpsilonType::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
@@ -706,14 +708,14 @@ static FlowExecutionMode flowExecutionPolicyFromString(const std::string& mode) 
 static WeightBalancingStrategy weightBalancingStrategyFromString(const std::string& type) {
   if (type == "none") {
     return WeightBalancingStrategy::none;
-  } else if (type == "prepacking") {
-    return WeightBalancingStrategy::prepacking;
-  } else if (type == "restart_ip_algorithm") {
-    return WeightBalancingStrategy::restart_ip_algorithm;
+  } else if (type == "prepacking_pessimistic") {
+    return WeightBalancingStrategy::prepacking_pessimistic;
+  } else if (type == "prepacking_optimistic") {
+    return WeightBalancingStrategy::prepacking_optimistic;
   }
   LOG << "Illegal option:" << type;
   exit(0);
-  return WeightBalancingStrategy::prepacking;
+  return WeightBalancingStrategy::prepacking_pessimistic;
 }
 
 static EpsilonType epsilonTypeFromString(const std::string& type) {
@@ -723,6 +725,8 @@ static EpsilonType epsilonTypeFromString(const std::string& type) {
     return EpsilonType::bin_restricted;
   } else if (type == "bin_relaxed") {
     return EpsilonType::bin_relaxed;
+  } else if (type == "fully_relaxed") {
+    return EpsilonType::fully_relaxed;
   } else if (type == "combined") {
     return EpsilonType::combined;
   }

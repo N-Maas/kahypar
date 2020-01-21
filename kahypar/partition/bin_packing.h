@@ -216,7 +216,7 @@ namespace bin_packing {
      * The algorithm is implemented in O(n*log(n)) by reusing the values of the previous
      * step and tracking the curent maximum with a priority queue.
      */
-    static inline std::pair<size_t, HypernodeWeight> calculate_heavy_nodes_treshhold(const Hypergraph& hg,
+    static inline std::pair<size_t, HypernodeWeight> calculate_heavy_nodes_treshhold_pessimistic(const Hypergraph& hg,
                                                          const std::vector<HypernodeID>& hypernodes,
                                                          const PartitionID& rb_range_k,
                                                          const HypernodeWeight& allowed_imbalance) {
@@ -236,7 +236,7 @@ namespace bin_packing {
 
         PartitionID k = (rb_range_k + 1) / 2;
         HypernodeWeight total_remaining_weight = 0;
-        for (const auto& node : hypernodes) {
+        for (const HypernodeID& node : hypernodes) {
             total_remaining_weight += hg.nodeWeight(node);
         }
 
@@ -277,7 +277,54 @@ namespace bin_packing {
 
         ASSERT(imbalance >= 0, "error calculating threshhold - negative imbalance: " << imbalance);
 
-        return {i, imbalance};
+        return {i, i == hypernodes.size() ? 0 : imbalance};
+    }
+
+    /**
+     * Calculates an index i for a set of n hypernodes with descending order of weight
+     * s.t. for any (balanced) bipartition of i and the remaining lighter hypernodes, the
+     * biparition does not worsen the imbalance of lower bisection levels by more
+     * then allowed_imbalance. Returns i and the resulting imbalance.
+     *
+     * The hypernodes must be sorted in descending order of weight.
+     *
+     * TODO
+     */
+    static inline std::pair<size_t, HypernodeWeight> calculate_heavy_nodes_treshhold_optimistic(const Hypergraph& hg,
+                                                         const std::vector<HypernodeID>& hypernodes,
+                                                         const PartitionID& rb_range_k,
+                                                         const HypernodeWeight& allowed_imbalance) {
+        ALWAYS_ASSERT(rb_range_k > 0, "rb_range_k must be positive.");
+        ASSERT([&]() {
+            for (size_t i = 1; i < hypernodes.size(); ++i) {
+                if (hg.nodeWeight(hypernodes[i-1]) < hg.nodeWeight(hypernodes[i])) {
+                    return false;
+                }
+            }
+            return true;
+        } (), "The hypernodes must be sorted in descending order of weight.");
+
+        if (rb_range_k <= 2) {
+            return {0, 0};
+        }
+
+        HypernodeWeight current_lower_sum = 0;
+        HypernodeWeight max_imbalance = 0;
+        HypernodeWeight imbalance = 0;
+
+        for (int i = hypernodes.size() - 1; i >= 0; --i) {
+            HypernodeWeight weight = hg.nodeWeight(hypernodes[i]);
+            current_lower_sum += weight;
+            imbalance = weight - current_lower_sum / rb_range_k;
+
+            if (imbalance > allowed_imbalance) {
+                return {i + 1, max_imbalance};
+            }
+
+            max_imbalance = std::max(imbalance, max_imbalance);
+        }
+
+        return {0, max_imbalance};
     }
 
     static inline std::vector<PartitionID> apply_bin_packing_to_nodes(const Hypergraph& hg,
@@ -331,7 +378,7 @@ namespace bin_packing {
     }
 
 
-    static inline void prepack_heavy_vertices(Hypergraph& hg, const Context& context, const PartitionID& rb_range_k) {
+    static inline void prepack_heavy_vertices(Hypergraph& hg, const Context& context, const PartitionID& rb_range_k, bool optimistic) {
         std::vector<HypernodeID> nodes = extract_nodes_with_descending_weight(hg);
 
         const std::vector<HypernodeWeight>& allowed_weights = context.initial_partitioning.upper_allowed_partition_weight;
@@ -344,7 +391,9 @@ namespace bin_packing {
         const double FACTOR = 1.0;
         HypernodeWeight allowed_imbalance = FACTOR * floor(context.initial_partitioning.current_max_bin * context.initial_partitioning.bin_epsilon);
 
-        std::pair<size_t, HypernodeWeight> treshhold = calculate_heavy_nodes_treshhold(hg, nodes, rb_range_k, allowed_imbalance);
+        std::pair<size_t, HypernodeWeight> treshhold = optimistic ? 
+            calculate_heavy_nodes_treshhold_optimistic(hg, nodes, rb_range_k, allowed_imbalance)
+            : calculate_heavy_nodes_treshhold_pessimistic(hg, nodes, rb_range_k, allowed_imbalance);
 
         nodes.resize(treshhold.first);
         std::vector<PartitionID> partitions = apply_bin_packing_to_nodes(hg, context, nodes);
@@ -352,14 +401,6 @@ namespace bin_packing {
         for (size_t i = 0; i < nodes.size(); ++i) {
             hg.setFixedVertex(nodes[i], partitions[i]);
         }
-
-        HypernodeWeight upperBinWeight = context.initial_partitioning.current_max_bin + allowed_imbalance - treshhold.second;
-        PartitionID k0 = rb_range_k / 2 + rb_range_k % 2;
-        PartitionID k1 = rb_range_k / 2;
-        if (perfect_weights[1] > perfect_weights[0]) {
-            std::swap(k0, k1);
-        }
-
     }
 
     // TODO refactor with metrics::finalLevelBinImbalance

@@ -43,23 +43,14 @@ static inline void partition(Hypergraph& hypergraph,
   ASSERT(!hypergraph.containsFixedVertices(), "Fixed vertices not allowed here.");
   io::printCoarseningBanner(context);
 
-  if (context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking) {
-    auto extracted_init_hypergraph = ds::reindex(hypergraph);
-    Hypergraph& init_hg = *extracted_init_hypergraph.first;
-    std::vector<HypernodeID> mapping(std::move(extracted_init_hypergraph.second));
-    init_hg.resetPartitioning();
-    // we do not want to use the community structure used during coarsening in initial partitioning
-    init_hg.resetCommunities();
-    Context init_context = initial::createContext(init_hg, context);
+  PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
+  // TODO this is fragile, as it depends on rb_range_k == 1 before top-level coarsening
     // perform prepacking of heavy vertices
-    PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
-    std::cout << V(init_context.partition.rb_upper_k) << " - " << V(init_context.partition.rb_lower_k) << " - " << V(init_context.initial_partitioning.k) << std::endl;
-    if (init_context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking && (rb_range_k > 2)) {
-      bin_packing::prepack_heavy_vertices(init_hg, init_context, rb_range_k);
-    }
-    for (const HypernodeID& hn : init_hg.fixedVertices()) {
-      hypergraph.setFixedVertex(mapping[hn], init_hg.fixedVertexPartID(hn));
-    }
+  if ((context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking_pessimistic
+      || context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking_optimistic) && (rb_range_k > 2)) {
+    Context packing_context = initial::createContext(hypergraph, context);
+    bool optimistic = context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking_optimistic;
+    bin_packing::prepack_heavy_vertices(hypergraph, packing_context, rb_range_k, optimistic);
   }
 
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();

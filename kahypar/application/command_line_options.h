@@ -389,8 +389,8 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     }),
     "Balancing strategy for vertex weights:\n"
     " - none\n"
-    " - prepacking\n"
-    " - restart_ip_algorithm"
+    " - prepacking_pessimistic\n"
+    " - prepacking_optimistic"
     "(default: none)")
     ("i-epsilon-type",
     po::value<std::string>()->value_name("<string>")->notifier(
@@ -402,6 +402,7 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     " - flat\n"
     " - bin_restricted\n"
     " - bin_relaxed\n"
+    " - fully_relaxed\n"
     " - combined"
     "(default: flat)")
     ("i-runs",

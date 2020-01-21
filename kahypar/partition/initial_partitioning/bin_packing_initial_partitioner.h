@@ -52,6 +52,7 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
     }
 
     // shuffle nodes with equal weight
+    // TODO: more randomness
     size_t i = 0;
     for (size_t j = 1; j < _descending_nodes.size(); ++j) {
       if (_hg.nodeWeight(_descending_nodes[i]) != _hg.nodeWeight(_descending_nodes[j])) {
@@ -86,10 +87,6 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
 
   void partitionImpl() override final {
     Base::multipleRunsInitialPartitioning();
-
-    if (_context.initial_partitioning.balancing == WeightBalancingStrategy::restart_ip_algorithm) {
-      Base::restartAtImbalancedBins();
-    }
   }
 
   void initialPartition() {
