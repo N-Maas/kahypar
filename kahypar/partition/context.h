@@ -293,6 +293,7 @@ inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningPar
   str << "  Algorithm:                          " << params.algo << std::endl;
   str << "  Balancing:                          " << params.balancing << std::endl;
   str << "  Epsilon type:                       " << params.e_type << std::endl;
+  str << "  Bin Packing algorithm:              " << params.bp_algo << std::endl;
   if (params.technique == InitialPartitioningTechnique::multilevel) {
     str << "IP Coarsening:                        " << std::endl;
     str << params.coarsening;
