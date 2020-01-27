@@ -216,7 +216,7 @@ namespace bin_packing {
                 }
 
                 std::sort(asc_bins.begin(), asc_bins.end(), [&](PartitionID i, PartitionID j) {
-                    return binWeight(i) <= binWeight(j);
+                    return binWeight(i) < binWeight(j);
                 });
                 return std::move(asc_bins);
             }
