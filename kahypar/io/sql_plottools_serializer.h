@@ -223,12 +223,6 @@ static inline void serialize(const Context& context, const Hypergraph& hypergrap
           << std::boolalpha << context.local_search.flow.use_improvement_history;
     }
     oss << " iteration=" << iteration;
-    for (PartitionID i = 0; i != hypergraph.k(); ++i) {
-      oss << " partSize" << i << "=" << hypergraph.partSize(i);
-    }
-    for (PartitionID i = 0; i != hypergraph.k(); ++i) {
-      oss << " partWeight" << i << "=" << hypergraph.partWeight(i);
-    }
     oss << " cut=" << metrics::hyperedgeCut(hypergraph)
         << " soed=" << metrics::soed(hypergraph)
         << " km1=" << metrics::km1(hypergraph)
