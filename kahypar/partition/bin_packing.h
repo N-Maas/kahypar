@@ -112,6 +112,7 @@ namespace bin_packing {
 
             PartitionID insertElement(HypernodeWeight weight) {
                 ASSERT(weight >= 0, "Negative weight.");
+                ASSERT(!bin_queue.empty(), "All available bins are locked.");
 
                 // assign node to bin with lowest weight
                 PartitionID bin = bin_queue.top();
@@ -172,6 +173,8 @@ namespace bin_packing {
                         assigned_bin = i;
                     }
                 }
+
+                ASSERT(!bins[assigned_bin].second, "All available bins are locked.");
                 bins[assigned_bin].first += weight;
                 return assigned_bin;
             }
@@ -195,6 +198,48 @@ namespace bin_packing {
             PartitionID num_bins;
     };
 
+    template< class BPAlg >
+    class BinCountWrapper {
+        public:
+            BinCountWrapper(PartitionID num_bins, HypernodeWeight max, const std::vector<PartitionID>& max_num_bins) :
+                alg(num_bins, max),
+                bin_counts() {
+                    ASSERT(static_cast<size_t>(num_bins) == max_num_bins.size(), "Inconsistent number of bins.");
+
+                    bin_counts.reserve(max_num_bins.size());
+                    for (const PartitionID& num_bins : max_num_bins) {
+                        ASSERT(num_bins > 0, "Every partition must allow at least one bin.");
+                        bin_counts.push_back({0, num_bins});
+                    }
+                }
+
+            void addWeight(PartitionID bin, HypernodeWeight weight) {
+                alg.addWeight(bin, weight);
+            }
+
+            PartitionID insertElement(HypernodeWeight weight) {
+                PartitionID bin = alg.insertElement(weight);
+
+                ASSERT(bin >= 0 && static_cast<size_t>(bin) < bin_counts.size(), "Invalid bin id returned.");
+                bin_counts[bin].first++;
+                if (bin_counts[bin].first >= bin_counts[bin].second) {
+                    lockBin(bin);
+                }
+                return bin;
+            }
+
+            void lockBin(PartitionID bin) {
+                alg.lockBin(bin);
+            }
+
+            HypernodeWeight binWeight(PartitionID bin) {
+                return alg.binWeight(bin);
+            }
+
+        private:
+            BPAlg alg;
+            std::vector<std::pair<PartitionID, PartitionID>> bin_counts;
+    };
 
     /**
      * The hypernodes must be sorted in descending order of weight. 
@@ -209,14 +254,19 @@ namespace bin_packing {
     static inline std::vector<PartitionID> two_level_packing(const Hypergraph& hg,
                                                               const std::vector<HypernodeID>& hypernodes,
                                                               const std::vector<HypernodeWeight>& max_allowed_partition_weights,
+                                                              const std::vector<PartitionID>& num_bins_per_partition,
                                                               PartitionID rb_range_k,
                                                               HypernodeWeight max_bin_weight,
                                                               std::vector<PartitionID>&& partitions = {}) {
         PartitionID num_partitions = static_cast<PartitionID>(max_allowed_partition_weights.size());
+        ALWAYS_ASSERT(num_bins_per_partition.size() == max_allowed_partition_weights.size(),
+            "max_allowed_partition_weights and num_bins_per_partition have different sizes: "
+            << V(max_allowed_partition_weights.size()) << "; " << V(num_bins_per_partition.size()));
         ALWAYS_ASSERT((num_partitions > 0) && (rb_range_k > 0),
             "num_partitions and rb_range_k must be positive: " << V(num_partitions) << "; " << V(rb_range_k));
         ALWAYS_ASSERT(partitions.empty() || (partitions.size() == hypernodes.size()),
-            "Size of fixed vertice partition IDs does not match the number of hypernodes: " << V(partitions.size()) << "; " << V(hypernodes.size()));
+            "Size of fixed vertice partition IDs does not match the number of hypernodes: "
+            << V(partitions.size()) << "; " << V(hypernodes.size()));
         ASSERT([&]() {
             for (size_t i = 1; i < hypernodes.size(); ++i) {
                 if (hg.nodeWeight(hypernodes[i-1]) < hg.nodeWeight(hypernodes[i])) {
@@ -296,7 +346,7 @@ namespace bin_packing {
         // ... and at the second level, the resulting k bins are packed into the final partitions
         HypernodeWeight max_partition = *std::max_element(max_allowed_partition_weights.cbegin(),
                                                     max_allowed_partition_weights.cend());
-        BPAlg partition_packer(num_partitions, max_partition);
+        BinCountWrapper<BPAlg> partition_packer(num_partitions, max_partition, num_bins_per_partition);
 
         for (PartitionID i = 0; i < num_partitions; ++i) {
             partition_packer.addWeight(i, max_partition - max_allowed_partition_weights[i]);
@@ -499,9 +549,9 @@ namespace bin_packing {
         HypernodeWeight max_bin_weight = floor(context.initial_partitioning.current_max_bin * (1 + context.initial_partitioning.bin_epsilon));
         partitions = context.initial_partitioning.bp_algo == BinPackingAlgorithm::worst_fit ?
             two_level_packing<WorstFit>(hg, nodes, context.initial_partitioning.upper_allowed_partition_weight,
-                                        rb_range_k, max_bin_weight, std::move(partitions)) :
+                                        context.initial_partitioning.num_bins_per_partition, rb_range_k, max_bin_weight, std::move(partitions)) :
             two_level_packing<FirstFit>(hg, nodes, context.initial_partitioning.upper_allowed_partition_weight,
-                                        rb_range_k, max_bin_weight, std::move(partitions));
+                                        context.initial_partitioning.num_bins_per_partition, rb_range_k, max_bin_weight, std::move(partitions));
 
         ASSERT(nodes.size() == partitions.size());
         ASSERT([&]() {
