@@ -78,8 +78,6 @@ class InitialPartitionerBase {
     }
     _context.partition.max_part_weights =
       _context.initial_partitioning.upper_allowed_partition_weight;
-    _context.partition.max_part_weights =
-      _context.initial_partitioning.upper_allowed_partition_weight;
   }
 
   void resetPartitioning() {

@@ -551,6 +551,7 @@ namespace bin_packing {
         // TODO optimal value?
         const double FACTOR = 1.0;
         HypernodeWeight allowed_imbalance = FACTOR * floor(context.initial_partitioning.current_max_bin * context.initial_partitioning.bin_epsilon);
+        ASSERT(allowed_imbalance > 0, "allowed_imbalance is zero!");
 
         std::pair<size_t, HypernodeWeight> treshhold = optimistic ? 
             calculate_heavy_nodes_treshhold_optimistic(hg, nodes, rb_range_k, allowed_imbalance) :

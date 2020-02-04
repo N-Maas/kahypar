@@ -106,6 +106,7 @@ static inline Context createCurrentBisectionContext(const Context& original_cont
                                                     const PartitionID kl) {
   Context current_context(original_context);
   current_context.partition.k = 2;
+  current_context.initial_partitioning.num_bins_per_partition = {k0, k1};
 
   if ((original_context.initial_partitioning.e_type == EpsilonType::bin_restricted && (current_k > 2))
       || original_context.initial_partitioning.e_type == EpsilonType::bin_relaxed
