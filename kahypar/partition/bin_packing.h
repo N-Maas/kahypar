@@ -245,9 +245,9 @@ namespace bin_packing {
                                                               std::vector<PartitionID>&& partitions = {}) {
         PartitionID num_partitions = static_cast<PartitionID>(max_allowed_partition_weights.size());
         ALWAYS_ASSERT((num_partitions > 0) && (rb_range_k > 0),
-            "num_partitions and rb_range_k must be positive.");
+            "num_partitions and rb_range_k must be positive: " << V(num_partitions) << "; " << V(rb_range_k));
         ALWAYS_ASSERT(partitions.empty() || (partitions.size() == hypernodes.size()),
-            "Size of fixed vertice partition IDs does not match the number of hypernodes.");
+            "Size of fixed vertice partition IDs does not match the number of hypernodes: " << V(partitions.size()) << "; " << V(hypernodes.size()));
         ASSERT([&]() {
             for (size_t i = 1; i < hypernodes.size(); ++i) {
                 if (hg.nodeWeight(hypernodes[i-1]) < hg.nodeWeight(hypernodes[i])) {
@@ -316,6 +316,9 @@ namespace bin_packing {
             }
         }
 
+        std::vector<PartitionID> kbin_ascending_ordering = bin_packer.extractBinsAscending();
+        ASSERT(kbin_ascending_ordering.size() == static_cast<size_t>(rb_range_k));
+
         // ... and at the second level, the resulting k bins are packed into the final partitions
         HypernodeWeight max_partition = *std::max_element(max_allowed_partition_weights.cbegin(),
                                                     max_allowed_partition_weights.cend());
@@ -324,11 +327,6 @@ namespace bin_packing {
         for (PartitionID i = 0; i < num_partitions; ++i) {
             partition_packer.addWeight(i, max_partition - max_allowed_partition_weights[i]);
         }
-
-        // read bins from the bin packer
-        std::vector<PartitionID> kbin_ascending_ordering = bin_packer.extractBinsAscending();
-
-        ASSERT(kbin_ascending_ordering.size() == static_cast<size_t>(rb_range_k));
 
         for (const PartitionID& bin : kbin_ascending_ordering) {
             if (bin_packer.isFixedBin(bin)) {
@@ -518,7 +516,7 @@ namespace bin_packing {
         ASSERT(static_cast<size_t>(context.partition.k) == context.initial_partitioning.upper_allowed_partition_weight.size());
 
         PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
-        HypernodeWeight max_bin_weight = floor(context.initial_partitioning.current_max_bin * context.initial_partitioning.bin_epsilon);
+        HypernodeWeight max_bin_weight = floor(context.initial_partitioning.current_max_bin * (1 + context.initial_partitioning.bin_epsilon));
         partitions = context.initial_partitioning.bp_algo == BinPackingAlgorithm::worst_fit ?
             two_level_packing<WorstFit>(hg, nodes, context.initial_partitioning.upper_allowed_partition_weight,
                                         rb_range_k, max_bin_weight, std::move(partitions)) :
