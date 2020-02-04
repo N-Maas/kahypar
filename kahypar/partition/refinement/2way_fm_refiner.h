@@ -428,7 +428,7 @@ class TwoWayFMRefiner final : public IRefiner,
             }
             // Gain calculation needs to be consistent in cache
             ASSERT(!_gain_cache.isCached(pin) || _gain_cache.value(pin) == computeGain(pin),
--                   V(pin) << V(_gain_cache.value(pin)) << V(computeGain(pin)));
+                   V(pin) << V(_gain_cache.value(pin)) << V(computeGain(pin)));
           }
         }
         return true;

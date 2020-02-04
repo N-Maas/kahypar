@@ -18,11 +18,10 @@
  *
 ******************************************************************************/
 
-#include <memory>
-
 #include "gmock/gmock.h"
 
 #include "kahypar/partition/bin_packing.h"
+#include "kahypar/utils/randomize.h"
 
 using ::testing::Eq;
 using ::testing::Test;
@@ -54,12 +53,10 @@ class BinPackingTest : public Test {
 TEST_F(BinPackingTest, BaseCases) {
   initializeWeights({});
 
-  ASSERT_TRUE(bin_packing::two_level_packing<WorstFit>(hypergraph, {}, {0, 0}, {1, 1}, 1, 0).empty());
   ASSERT_TRUE(bin_packing::two_level_packing<WorstFit>(hypergraph, {}, {0, 1}, {1, 1}, 2, 1).empty());
   ASSERT_TRUE(bin_packing::two_level_packing<WorstFit>(hypergraph, {}, {1, 0}, {2, 2}, 3, 0).empty());
   ASSERT_TRUE(bin_packing::two_level_packing<WorstFit>(hypergraph, {}, {1, 1}, {2, 2}, 4, 1).empty());
 
-  ASSERT_TRUE(bin_packing::two_level_packing<FirstFit>(hypergraph, {}, {0, 0}, {1, 1}, 1, 0).empty());
   ASSERT_TRUE(bin_packing::two_level_packing<FirstFit>(hypergraph, {}, {0, 1}, {1, 1}, 2, 1).empty());
   ASSERT_TRUE(bin_packing::two_level_packing<FirstFit>(hypergraph, {}, {1, 0}, {2, 2}, 3, 0).empty());
   ASSERT_TRUE(bin_packing::two_level_packing<FirstFit>(hypergraph, {}, {1, 1}, {2, 2}, 4, 1).empty());
@@ -97,16 +94,6 @@ TEST_F(BinPackingTest, BaseCases) {
   ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1) || (result.at(0) == 1 && result.at(1) == 0), true);
 
   result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 2, 2);
-  ASSERT_EQ(result.size(), 2);
-  ASSERT_EQ(result.at(0), 0);
-  ASSERT_EQ(result.at(1), 0);
-
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 1, 2);
-  ASSERT_EQ(result.size(), 2);
-  ASSERT_EQ(result.at(0), 0);
-  ASSERT_EQ(result.at(1), 0);
-
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 1, 2);
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 0);
@@ -388,6 +375,24 @@ TEST_F(BinPackingTest, WFUnevenAndFixed) {
   ASSERT_EQ(result.at(4), 1);
 }
 
+TEST_F(BinPackingTest, BinLimit) {
+  initializeWeights({3, 2, 2, 1});
+
+  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {1, 3}, 4, 2);
+  ASSERT_EQ(result.size(), 4);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ(result.at(2), 1);
+  ASSERT_EQ(result.at(3), 1);
+
+  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {1, 3}, 4, 2);
+  ASSERT_EQ(result.size(), 4);
+  ASSERT_EQ(result.at(0), 0);
+  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ(result.at(2), 1);
+  ASSERT_EQ(result.at(3), 1);
+}
+
 TEST_F(BinPackingTest, ExtractNodes) {
   initializeWeights({});
 
@@ -469,6 +474,100 @@ TEST_F(BinPackingTest, TreshholdDiff) {
   ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7, 8}, 4, 2), four_two);
   ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold_optimistic(hypergraph, {0, 1, 5, 6, 7, 8}, 4, 3), zero_three);
   ASSERT_EQ(bin_packing::calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 1, 5, 6, 7, 8}, 4, 3), zero_three);
+}
+
+TEST_F(BinPackingTest, TwoLevelPackingFuzzingTest) {
+  // Constraints:
+  // 1) Nodes must be sorted by weight
+  // 2) hypernodes.size() == partitions.size()
+  // 3) max_allowed_partition_weights.size() == num_bins_per_partition.size()
+  // 4) num_partitions > 0 && rb_range_k >= num_partitions
+  // 5) sum(num_bins_per_partition >= rb_range_k)
+  // 6) num_bins_per_partition[i] > 0 for all i
+
+  const size_t NUM_ITERATIONS = 5000;
+  const HypernodeID MAX_NUM_HNS = 500;
+  const size_t MAX_SELECTION_STEP = 10;
+  const HypernodeWeight MAX_HN_WEIGHT = 100;
+  const HypernodeWeight WEIGHT_VARIANCE = 2;
+  const PartitionID MAX_NUM_PARTITIONS = 8;
+  const PartitionID MAX_RANGE_K = 32;
+  const PartitionID NUM_BIN_VARIANCE = 4;
+
+  std::mt19937 gen(std::random_device{}());
+  int seed = std::uniform_int_distribution<>{ 0 }(gen);
+  Randomize& random = Randomize::instance();
+  random.setSeed(seed);
+  std::cout << "Seed for TwoLevelPackingFuzzingTest: " << seed << std::endl;
+
+  for (size_t i = 0; i < NUM_ITERATIONS; ++i) {
+    // create random weights
+    HypernodeID num_hns_total = random.getRandomInt(0, MAX_NUM_HNS);
+    HypernodeWeight min_hn_weight = random.getRandomInt(0, MAX_HN_WEIGHT);
+    PartitionID num_partitions = random.getRandomInt(1, MAX_NUM_PARTITIONS);
+    PartitionID rb_range_k = random.getRandomInt(num_partitions, MAX_RANGE_K);
+    HypernodeWeight max_partition_weight = random.getRandomInt(0, WEIGHT_VARIANCE * num_hns_total * MAX_HN_WEIGHT / num_partitions);
+    HypernodeWeight max_bin_weight = random.getRandomInt(0, WEIGHT_VARIANCE * num_hns_total * MAX_HN_WEIGHT / rb_range_k);
+
+    HypernodeWeightVector weights;
+    weights.reserve(num_hns_total);
+    for (HypernodeID j = 0; j < num_hns_total; ++j) {
+      weights.push_back(random.getRandomInt(min_hn_weight, MAX_HN_WEIGHT));
+    }
+    initializeWeights(weights);
+    std::vector<HypernodeID> all_nodes = bin_packing::extract_nodes_with_descending_weight(hypergraph);
+
+    // choose random subset of the nodes
+    std::vector<HypernodeID> nodes;
+    size_t max_step = random.getRandomInt(1, MAX_SELECTION_STEP);
+    for (size_t j = 0; j < all_nodes.size(); j += random.getRandomInt(1, max_step)) {
+      nodes.push_back(all_nodes[j]);
+    }
+
+    // choose fixed vertices
+    float fixed_vertex_probability = random.getRandomFloat(0, 1);
+    std::vector<PartitionID> partitions;
+    partitions.reserve(nodes.size());
+    for (size_t j = 0; j < nodes.size(); ++j) {
+      if (random.getRandomFloat(0, 1) < fixed_vertex_probability) {
+        partitions.push_back(random.getRandomInt(0, num_partitions - 1));
+      } else {
+        partitions.push_back(-1);
+      }
+    }
+
+    // choose partition weights
+    HypernodeWeight min_partition_weight = random.getRandomInt(0, max_partition_weight);
+    std::vector<HypernodeWeight> max_allowed_partition_weights;
+    max_allowed_partition_weights.reserve(num_partitions);
+    for (PartitionID j = 0; j < num_partitions; ++j) {
+      max_allowed_partition_weights.push_back(random.getRandomInt(min_partition_weight, max_partition_weight));
+    }
+
+    // choose num bins
+    PartitionID max_num_bins = random.getRandomInt(1, std::max(NUM_BIN_VARIANCE * rb_range_k / num_partitions, 1));
+    PartitionID min_num_bins = random.getRandomInt(1, max_num_bins);
+    std::vector<PartitionID> num_bins_per_partition;
+    num_bins_per_partition.reserve(num_partitions);
+    for (PartitionID j = 0; j < num_partitions; ++j) {
+      num_bins_per_partition.push_back(random.getRandomInt(min_num_bins, max_num_bins));
+    }
+
+    while (std::accumulate(num_bins_per_partition.cbegin(), num_bins_per_partition.cend(), 0) < rb_range_k) {
+      for(PartitionID& num : num_bins_per_partition) {
+        ++num;
+      }
+    }
+
+    std::vector<PartitionID> partitions_copy(partitions);
+    auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, nodes, max_allowed_partition_weights,
+      num_bins_per_partition, rb_range_k, max_bin_weight, std::move(partitions));
+    ASSERT_EQ(result.size(), nodes.size());
+
+    result = bin_packing::two_level_packing<WorstFit>(hypergraph, nodes, max_allowed_partition_weights,
+      num_bins_per_partition, rb_range_k, max_bin_weight, std::move(partitions_copy));
+    ASSERT_EQ(result.size(), nodes.size());
+  }
 }
 
 }  // namespace kahypar

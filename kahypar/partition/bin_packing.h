@@ -262,8 +262,8 @@ namespace bin_packing {
         ALWAYS_ASSERT(num_bins_per_partition.size() == max_allowed_partition_weights.size(),
             "max_allowed_partition_weights and num_bins_per_partition have different sizes: "
             << V(max_allowed_partition_weights.size()) << "; " << V(num_bins_per_partition.size()));
-        ALWAYS_ASSERT((num_partitions > 0) && (rb_range_k > 0),
-            "num_partitions and rb_range_k must be positive: " << V(num_partitions) << "; " << V(rb_range_k));
+        ALWAYS_ASSERT((num_partitions > 0) && (rb_range_k >= num_partitions),
+            "num_partitions or rb_range_k invalid: " << V(num_partitions) << "; " << V(rb_range_k));
         ALWAYS_ASSERT(partitions.empty() || (partitions.size() == hypernodes.size()),
             "Size of fixed vertice partition IDs does not match the number of hypernodes: "
             << V(partitions.size()) << "; " << V(hypernodes.size()));
@@ -287,6 +287,7 @@ namespace bin_packing {
             std::vector<size_t> fixed_vertices;
 
             for (size_t i = 0; i < hypernodes.size(); ++i) {
+                ASSERT(partitions[i] >= -1, "Invalid partition ID.");
                 total_weight += hg.nodeWeight(hypernodes[i]);
 
                 if (partitions[i] >= 0) {
@@ -526,12 +527,6 @@ namespace bin_packing {
     static inline std::vector<PartitionID> apply_bin_packing_to_nodes(const Hypergraph& hg,
                                                                       const Context& context,
                                                                       const std::vector<HypernodeID>& nodes) {
-        std::cout << "Bins per partition: ";
-        for(auto val : context.initial_partitioning.num_bins_per_partition) {
-            std::cout << V(val) << " - ";
-        }
-        std::cout << std::endl;
-
         std::vector<PartitionID> partitions(nodes.size(), -1);
         if (hg.containsFixedVertices()) {
             for (size_t i = 0; i < nodes.size(); ++i) {
