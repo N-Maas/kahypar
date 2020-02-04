@@ -51,15 +51,12 @@ namespace bin_packing {
     //      PartitionID resulting_bin = alg.insertElement(weight);
     //
     // 4)
-    //      std::vector<PartitionID> asc_bins = alg.extractBins();
-    //
-    //      * Where asc_bins contains the bin ids in undefined order.
+    //      ParititionID bin = ...;
+    //      alg.lockBin(bin);
     //
     // 5)
     //      ParititionID bin = ...;
     //      HypernodeWeight weight = alg.binWeight(bin);
-    //
-    // It can be assumed that 4 is only called once.
 
     class PartitionMapping {
         public:
@@ -122,29 +119,21 @@ namespace bin_packing {
                 return bin;
             }
 
+            void lockBin(PartitionID bin) {
+                ASSERT(bin >= 0 && bin < num_bins, "Invalid bin id.");
+                ASSERT(bin_queue.contains(bin), "Bin already locked.");
+
+                if (weights.empty()) {
+                    weights.resize(num_bins, 0);
+                }
+                weights[bin] = bin_queue.getKey(bin);
+                bin_queue.remove(bin);
+            }
+
             HypernodeWeight binWeight(PartitionID bin) {
                 ASSERT(bin >= 0 && bin < num_bins, "Invalid bin id.");
 
-                return weights.empty() ? bin_queue.getKey(bin) : weights[bin];
-            }
-
-            std::vector<PartitionID> extractBins() {
-                ASSERT(bin_queue.size() == static_cast<size_t>(num_bins));
-
-                std::vector<PartitionID> asc_bins;
-                asc_bins.reserve(num_bins);
-                weights.resize(num_bins, 0);
-
-                while (bin_queue.size() > 0) {
-                    PartitionID bin = bin_queue.top();
-                    ASSERT(bin >= 0 && bin < num_bins, "Invalid bin id.");
-                    ASSERT(weights[bin] == 0);
-
-                    weights[bin] = bin_queue.topKey();
-                    asc_bins.push_back(bin);
-                    bin_queue.pop();
-                }
-                return std::move(asc_bins);
+                return bin_queue.contains(bin) ? bin_queue.getKey(bin) : weights[bin];
             }
 
         private:
@@ -157,56 +146,52 @@ namespace bin_packing {
         public:
             FirstFit(PartitionID num_bins, HypernodeWeight max) :
                 max_bin_weight(max),
-                weights(num_bins, 0),
+                bins(num_bins, {0, false}),
                 num_bins(num_bins) { }
 
             void addWeight(PartitionID bin, HypernodeWeight weight) {
                 ASSERT(bin >= 0 && bin < num_bins, "Invalid bin id.");
 
-                weights[bin] += weight;
+                bins[bin].first += weight;
             }
 
             PartitionID insertElement(HypernodeWeight weight) {
                 ASSERT(weight >= 0, "Negative weight.");
 
                 size_t assigned_bin = 0;
-                for (size_t i = 0; i < weights.size(); ++i) {
+                for (size_t i = 0; i < bins.size(); ++i) {
+                    if (bins[i].second) {
+                        continue;
+                    }
+
                     // The node is assigned to the first fitting bin or, if none fits, the smallest bin.
-                    if (weights[i] + weight <= max_bin_weight) {
+                    if (bins[i].first + weight <= max_bin_weight) {
                         assigned_bin = i;
                         break;
-                    } else if (weights[i] < weights[assigned_bin]) {
+                    } else if (bins[assigned_bin].second || bins[i].first < bins[assigned_bin].first) {
                         assigned_bin = i;
                     }
                 }
-                weights[assigned_bin] += weight;
+                bins[assigned_bin].first += weight;
                 return assigned_bin;
+            }
+
+            void lockBin(PartitionID bin) {
+                ASSERT(bin >= 0 && bin < num_bins, "Invalid bin id.");
+                ASSERT(!bins[bin].second, "Bin already locked.");
+
+                bins[bin].second = true;
             }
 
             HypernodeWeight binWeight(PartitionID bin) {
                 ASSERT(bin >= 0 && bin < num_bins, "Invalid bin id.");
 
-                return weights[bin];
-            }
-
-            std::vector<PartitionID> extractBins() {
-                ASSERT(weights.size() == static_cast<size_t>(num_bins));
-
-                std::vector<PartitionID> asc_bins;
-                asc_bins.reserve(num_bins);
-                for (PartitionID i = 0; i < num_bins; ++i) {
-                    asc_bins.push_back(i);
-                }
-
-                std::sort(asc_bins.begin(), asc_bins.end(), [&](PartitionID i, PartitionID j) {
-                    return binWeight(i) < binWeight(j);
-                });
-                return std::move(asc_bins);
+                return bins[bin].first;
             }
 
         private:
             HypernodeWeight max_bin_weight;
-            std::vector<HypernodeWeight> weights;
+            std::vector<std::pair<HypernodeWeight, bool>> bins;
             PartitionID num_bins;
     };
 
@@ -301,7 +286,8 @@ namespace bin_packing {
             }
         }
 
-        std::vector<PartitionID> kbins_ascending = bin_packer.extractBins();
+        std::vector<PartitionID> kbins_ascending(rb_range_k);
+        std::iota(kbins_ascending.begin(), kbins_ascending.end(), 0);
         std::sort(kbins_ascending.begin(), kbins_ascending.end(), [&](PartitionID i, PartitionID j) {
                 return bin_packer.binWeight(i) < bin_packer.binWeight(j);
             });
@@ -490,6 +476,12 @@ namespace bin_packing {
     static inline std::vector<PartitionID> apply_bin_packing_to_nodes(const Hypergraph& hg,
                                                                       const Context& context,
                                                                       const std::vector<HypernodeID>& nodes) {
+        std::cout << "Bins per partition: ";
+        for(auto val : context.initial_partitioning.num_bins_per_partition) {
+            std::cout << V(val) << " - ";
+        }
+        std::cout << std::endl;
+
         std::vector<PartitionID> partitions(nodes.size(), -1);
         if (hg.containsFixedVertices()) {
             for (size_t i = 0; i < nodes.size(); ++i) {

@@ -86,18 +86,15 @@ TEST_F(BinPackingTest, BaseCases) {
 
   result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {1, 1}, 2, 0);
   ASSERT_EQ(result.size(), 2);
-  ASSERT_EQ(result.at(0), 0);
-  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1) || (result.at(0) == 1 && result.at(1) == 0), true);
 
   result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1}, {1, 1}, 2, 0);
   ASSERT_EQ(result.size(), 2);
-  ASSERT_EQ(result.at(0), 0);
-  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1) || (result.at(0) == 1 && result.at(1) == 0), true);
 
   result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {1, 1}, 2, 2);
   ASSERT_EQ(result.size(), 2);
-  ASSERT_EQ(result.at(0), 0);
-  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1) || (result.at(0) == 1 && result.at(1) == 0), true);
 
   result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1}, {1, 1}, 2, 2);
   ASSERT_EQ(result.size(), 2);
@@ -116,8 +113,7 @@ TEST_F(BinPackingTest, BaseCases) {
 
   result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {2, 2}, 2, 2);
   ASSERT_EQ(result.size(), 2);
-  ASSERT_EQ(result.at(0), 0);
-  ASSERT_EQ(result.at(1), 1);
+  ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1) || (result.at(0) == 1 && result.at(1) == 0), true);
 
   result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1}, {2, 2}, 2, 2);
   ASSERT_EQ(result.size(), 2);
@@ -130,15 +126,13 @@ TEST_F(BinPackingTest, ReverseIndizes) {
 
   auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {1, 2, 0}, {3, 3}, 2, 3);
   ASSERT_EQ(result.size(), 3);
-  ASSERT_EQ(result.at(0), 0);
-  ASSERT_EQ(result.at(1), 1);
-  ASSERT_EQ(result.at(2), 1);
+  ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1 && result.at(2) == 1)
+    || (result.at(0) == 1 && result.at(1) == 0 && result.at(2) == 0), true);
 
   result = bin_packing::two_level_packing<FirstFit>(hypergraph, {1, 2, 0}, {3, 3}, 2, 3);
   ASSERT_EQ(result.size(), 3);
-  ASSERT_EQ(result.at(0), 0);
-  ASSERT_EQ(result.at(1), 1);
-  ASSERT_EQ(result.at(2), 1);
+  ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1 && result.at(2) == 1)
+    || (result.at(0) == 1 && result.at(1) == 0 && result.at(2) == 0), true);
 }
 
 TEST_F(BinPackingTest, WFTwoBinPacking) {
