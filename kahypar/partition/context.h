@@ -257,6 +257,7 @@ struct InitialPartitioningParameters {
   Mode mode = Mode::UNDEFINED;
   InitialPartitioningTechnique technique = InitialPartitioningTechnique::UNDEFINED;
   InitialPartitionerAlgorithm algo = InitialPartitionerAlgorithm::UNDEFINED;
+  EpsilonType e_type = EpsilonType::UNDEFINED;
   CoarseningParameters coarsening = { };
   LocalSearchParameters local_search = { };
   uint32_t nruns = std::numeric_limits<uint32_t>::max();

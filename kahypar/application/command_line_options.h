@@ -380,7 +380,17 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     "Algorithm used to create initial partition: pool ")
     ("i-runs",
     po::value<uint32_t>(&context.initial_partitioning.nruns)->value_name("<uint32_t>"),
-    "# initial partition trials");
+    "# initial partition trials")
+    ("i-epsilon-type",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& ip_e_type) {
+      context.initial_partitioning.e_type =
+        kahypar::epsilonTypeFromString(ip_e_type);
+    }),
+    "Calculation of epsilon value for bisections:\n"
+    " - flat\n"
+    " - relaxed"
+    "(default: flat)");
   options.add(createCoarseningOptionsDescription(context, num_columns, true));
   options.add(createRefinementOptionsDescription(context, num_columns, true));
   return options;

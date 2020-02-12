@@ -177,6 +177,12 @@ enum class FlowExecutionMode : uint8_t {
   UNDEFINED
 };
 
+enum class EpsilonType : uint8_t {
+  flat,
+  relaxed,
+  UNDEFINED
+};
+
 
 std::ostream& operator<< (std::ostream& os, const EvoReplaceStrategy& replace) {
   switch (replace) {
@@ -421,6 +427,16 @@ std::ostream& operator<< (std::ostream& os, const FlowExecutionMode& mode) {
   return os << static_cast<uint8_t>(mode);
 }
 
+std::ostream& operator<< (std::ostream& os, const EpsilonType& e_type) {
+  switch (e_type) {
+    case EpsilonType::flat: return os << "flat";
+    case EpsilonType::relaxed: return os << "relaxed";
+    case EpsilonType::UNDEFINED: return os << "UNDEFINED";
+      // omit default case to trigger compiler warning for missing cases
+  }
+  return os << static_cast<uint8_t>(e_type);
+}
+
 static EvoMutateStrategy mutateStrategyFromString(const std::string& strat) {
   if (strat == "new-initial-partitioning-vcycle") {
     return EvoMutateStrategy::new_initial_partitioning_vcycle;
@@ -661,5 +677,16 @@ static FlowExecutionMode flowExecutionPolicyFromString(const std::string& mode) 
   LOG << "No valid flow execution mode.";
   exit(0);
   return FlowExecutionMode::exponential;
+}
+
+static EpsilonType epsilonTypeFromString(const std::string& type) {
+  if (type == "flat") {
+    return EpsilonType::flat;
+  } else if (type == "relaxed") {
+    return EpsilonType::relaxed;
+  }
+  LOG << "Illegal option:" << type;
+  exit(0);
+  return EpsilonType::flat;
 }
 }  // namespace kahypar
