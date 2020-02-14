@@ -84,6 +84,13 @@ namespace bin_packing {
                 return partitions[bin];
             }
 
+            void applyMapping(std::vector<PartitionID>& elements) {
+                for (PartitionID& id : elements) {
+                    ASSERT(binPartition(id) >= 0, "Bin not assigned: " << id);
+                    id = binPartition(id);
+                }
+            }
+
         protected:
             void assertBinIsValid(PartitionID bin) const {
                 ASSERT(bin >= 0 && static_cast<size_t>(bin) < partitions.size(), "Invalid bin id.");
@@ -135,6 +142,10 @@ namespace bin_packing {
                 ASSERT(bin >= 0 && bin < num_bins, "Invalid bin id.");
 
                 return bin_queue.contains(bin) ? bin_queue.getKey(bin) : weights[bin];
+            }
+
+            PartitionID numBins() {
+                return _num_bins;
             }
 
         private:
@@ -192,6 +203,10 @@ namespace bin_packing {
                 return bins[bin].first;
             }
 
+            PartitionID numBins() {
+                return _num_bins;
+            }
+
         private:
             HypernodeWeight max_bin_weight;
             std::vector<std::pair<HypernodeWeight, bool>> bins;
@@ -241,6 +256,82 @@ namespace bin_packing {
             std::vector<std::pair<PartitionID, PartitionID>> bin_counts;
     };
 
+    template< class BPAlg >
+    class TwoLevelPacker {
+        public:
+            TwoLevelPacker(PartitionID num_bins, HypernodeWeight max_bin) :
+                _alg(num_bins, max_bin),
+                _bins_to_parts(num_bins) {
+                ASSERT(num_bins > 0, "Number of bins must be positive.");
+            }
+
+            // At the first level, a packing with k bins is calculated ....
+            PartitionID insertElement(HypernodeWeight weight) {
+                return _alg.insertElement(weight);
+            }
+
+            void addFixedVertex(PartitionID bin, PartitionID partition, HypernodeWeight weight) {
+                _bins_to_parts.setPartition(bin, partition);
+                _alg.addWeight(bin, weight);
+            }
+
+            HypernodeWeight binWeight(PartitionID bin) {
+                return _alg.binWeight(bin);
+            }
+
+            // ... and at the second level, the resulting k bins are packed into the final partitions
+            std::pair<PartitionMapping, HypernodeWeight> applySecondLevel(const std::vector<HypernodeWeight>& max_allowed_partition_weights,
+                                                                          const std::vector<PartitionID>& num_bins_per_partition) {
+                ALWAYS_ASSERT(num_bins_per_partition.size() == max_allowed_partition_weights.size(),
+                    "max_allowed_partition_weights and num_bins_per_partition have different sizes: "
+                    << V(max_allowed_partition_weights.size()) << "; " << V(num_bins_per_partition.size()));
+
+                PartitionID num_partitions = static_cast<PartitionID>(max_allowed_partition_weights.size());
+                std::vector<PartitionID> bin_counts(max_allowed_partition_weights.size(), 0);
+                PartitionMapping mapping = _bins_to_parts;
+
+                HypernodeWeight max_partition = *std::max_element(max_allowed_partition_weights.cbegin(),
+                                                                  max_allowed_partition_weights.cend());
+                BPAlg partition_packer(num_partitions, max_partition);
+                for (PartitionID i = 0; i < num_partitions; ++i) {
+                    partition_packer.addWeight(i, max_partition - max_allowed_partition_weights[i]);
+                }
+
+                for (PartitionID bin = 0; bin < _alg.numBins(); ++bin) {
+                    if(mapping.isFixedBin(bin)) {
+                        partition_packer.addWeight(mapping.binPartition(bin), _alg.binWeight(bin));
+                    }
+                }
+
+                std::vector<PartitionID> kbins_descending(_alg.numBins());
+                std::iota(kbins_descending.begin(), kbins_descending.end(), 0);
+                std::sort(kbins_descending.begin(), kbins_descending.end(), [&](PartitionID i, PartitionID j) {
+                    return _alg.binWeight(i) > _alg.binWeight(j);
+                });
+
+                for (const PartitionID& bin : kbins_descending) {
+                    // if not fixed, assign bin to partition
+                    if (!mapping.isFixedBin(bin)) {
+                        PartitionID partition = partition_packer.insertElement(_alg.binWeight(bin));
+                        ASSERT((partition >= 0) && (partition < num_partitions));
+
+                        size_t part_idx = static_cast<size_t>(partition);
+                        bin_counts[part_idx]++;
+                        if (bin_counts[part_idx] >= num_bins_per_partition[part_idx]) {
+                            partition_packer.lockBin(partition);
+                        }
+
+                        mapping.setPartition(bin, partition);
+                    }
+                }
+
+                return {std::move(mapping), _alg.binWeight(kbins_descending[0])};
+            }
+
+        private:
+            BPAlg _alg;
+            PartitionMapping _bins_to_parts;
+    };
     /**
      * The hypernodes must be sorted in descending order of weight. 
      * The partitions parameter can be used to specify fixed vertices.
