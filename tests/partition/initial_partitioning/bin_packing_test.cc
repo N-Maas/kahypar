@@ -29,6 +29,8 @@ using ::testing::Test;
 namespace kahypar {
 using bin_packing::WorstFit;
 using bin_packing::FirstFit;
+using bin_packing::PartitionMapping;
+using bin_packing::TwoLevelPacker;
 
 class BinPackingTest : public Test {
     public:
@@ -47,62 +49,152 @@ class BinPackingTest : public Test {
             }
         }
 
+        template< class BPAlg >
+        static inline std::vector<PartitionID> two_level_packing(const Hypergraph& hg,
+                                                              const std::vector<HypernodeID>& hypernodes,
+                                                              const std::vector<HypernodeWeight>& max_allowed_partition_weights,
+                                                              const std::vector<PartitionID>& num_bins_per_partition,
+                                                              PartitionID rb_range_k,
+                                                              HypernodeWeight max_bin_weight,
+                                                              std::vector<PartitionID>&& partitions = {}) {
+        PartitionID num_partitions = static_cast<PartitionID>(max_allowed_partition_weights.size());
+        ALWAYS_ASSERT(num_bins_per_partition.size() == max_allowed_partition_weights.size(),
+            "max_allowed_partition_weights and num_bins_per_partition have different sizes: "
+            << V(max_allowed_partition_weights.size()) << "; " << V(num_bins_per_partition.size()));
+        ALWAYS_ASSERT((num_partitions > 0) && (rb_range_k >= num_partitions),
+            "num_partitions or rb_range_k invalid: " << V(num_partitions) << "; " << V(rb_range_k));
+        ALWAYS_ASSERT(partitions.empty() || (partitions.size() == hypernodes.size()),
+            "Size of fixed vertice partition IDs does not match the number of hypernodes: "
+            << V(partitions.size()) << "; " << V(hypernodes.size()));
+        ASSERT([&]() {
+            for (size_t i = 1; i < hypernodes.size(); ++i) {
+                if (hg.nodeWeight(hypernodes[i-1]) < hg.nodeWeight(hypernodes[i])) {
+                    return false;
+                }
+            }
+            return true;
+        } (), "The hypernodes must be sorted in descending order of weight.");
+
+        TwoLevelPacker<BPAlg> packer(rb_range_k, max_bin_weight);
+
+        if (partitions.empty()) {
+            partitions.resize(hypernodes.size(), -1);
+        } else {
+            // If fixed vertices are specified, calculate the total weight and extract all fixed vertices...
+            HypernodeWeight total_weight = 0;
+            std::vector<size_t> fixed_vertices;
+
+            for (size_t i = 0; i < hypernodes.size(); ++i) {
+                ASSERT(partitions[i] >= -1, "Invalid partition ID.");
+                total_weight += hg.nodeWeight(hypernodes[i]);
+
+                if (partitions[i] >= 0) {
+                    ALWAYS_ASSERT(partitions[i] < num_partitions, "Invalid partition ID for node: "
+                                  << partitions[i] << "; " << V(num_partitions));
+
+                    fixed_vertices.push_back(i);
+                }
+            }
+
+            // ...to pre-pack the fixed vertices with a first fit packing
+            HypernodeWeight avg_bin_weight = (total_weight + rb_range_k - 1) / rb_range_k;
+            PartitionID kbins_per_partition = rb_range_k / num_partitions;
+
+            for (const size_t& index : fixed_vertices) {
+                HypernodeWeight weight = hg.nodeWeight(hypernodes[index]);
+                PartitionID part_id = partitions[index];
+
+                PartitionID start_index = part_id * kbins_per_partition;
+                PartitionID assigned_bin = start_index;
+
+                if (kbins_per_partition > 1) {
+                    for (PartitionID i = start_index; i < start_index + kbins_per_partition; ++i) {
+                        HypernodeWeight current_bin_weight = packer.binWeight(i);
+
+                        // The node is assigned to the first fitting bin or, if none fits, the smallest bin.
+                        if (current_bin_weight + weight <= avg_bin_weight) {
+                            assigned_bin = i;
+                            break;
+                        } else if (current_bin_weight < packer.binWeight(assigned_bin)) {
+                            assigned_bin = i;
+                        }
+                    }
+                }
+
+                packer.addFixedVertex(assigned_bin, part_id, weight);
+                partitions[index] = assigned_bin;
+            }
+        }
+
+        // At the first level, a packing with k bins is calculated ....
+        for (size_t i = 0; i < hypernodes.size(); ++i) {
+            if (partitions[i] == -1) {
+                HypernodeWeight weight = hg.nodeWeight(hypernodes[i]);
+                partitions[i] = packer.insertElement(weight);
+            }
+        }
+
+        PartitionMapping mapping = packer.applySecondLevel(max_allowed_partition_weights, num_bins_per_partition).first;
+        mapping.applyMapping(partitions);
+        return partitions;
+    }
+
     Hypergraph hypergraph;
 };
 
 TEST_F(BinPackingTest, BaseCases) {
   initializeWeights({});
 
-  ASSERT_TRUE(bin_packing::two_level_packing<WorstFit>(hypergraph, {}, {0, 1}, {1, 1}, 2, 1).empty());
-  ASSERT_TRUE(bin_packing::two_level_packing<WorstFit>(hypergraph, {}, {1, 0}, {2, 2}, 3, 0).empty());
-  ASSERT_TRUE(bin_packing::two_level_packing<WorstFit>(hypergraph, {}, {1, 1}, {2, 2}, 4, 1).empty());
+  ASSERT_TRUE(two_level_packing<WorstFit>(hypergraph, {}, {0, 1}, {1, 1}, 2, 1).empty());
+  ASSERT_TRUE(two_level_packing<WorstFit>(hypergraph, {}, {1, 0}, {2, 2}, 3, 0).empty());
+  ASSERT_TRUE(two_level_packing<WorstFit>(hypergraph, {}, {1, 1}, {2, 2}, 4, 1).empty());
 
-  ASSERT_TRUE(bin_packing::two_level_packing<FirstFit>(hypergraph, {}, {0, 1}, {1, 1}, 2, 1).empty());
-  ASSERT_TRUE(bin_packing::two_level_packing<FirstFit>(hypergraph, {}, {1, 0}, {2, 2}, 3, 0).empty());
-  ASSERT_TRUE(bin_packing::two_level_packing<FirstFit>(hypergraph, {}, {1, 1}, {2, 2}, 4, 1).empty());
+  ASSERT_TRUE(two_level_packing<FirstFit>(hypergraph, {}, {0, 1}, {1, 1}, 2, 1).empty());
+  ASSERT_TRUE(two_level_packing<FirstFit>(hypergraph, {}, {1, 0}, {2, 2}, 3, 0).empty());
+  ASSERT_TRUE(two_level_packing<FirstFit>(hypergraph, {}, {1, 1}, {2, 2}, 4, 1).empty());
 
   initializeWeights({1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0}, {1}, {1}, 1, 1);
+  auto result = two_level_packing<WorstFit>(hypergraph, {0}, {1}, {1}, 1, 1);
   ASSERT_EQ(result.size(), 1);
   ASSERT_EQ(result.at(0), 0);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0}, {1}, {1}, 1, 0);
+  result = two_level_packing<WorstFit>(hypergraph, {0}, {1}, {1}, 1, 0);
   ASSERT_EQ(result.size(), 1);
   ASSERT_EQ(result.at(0), 0);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0}, {1}, {1}, 1, 1);
+  result = two_level_packing<FirstFit>(hypergraph, {0}, {1}, {1}, 1, 1);
   ASSERT_EQ(result.size(), 1);
   ASSERT_EQ(result.at(0), 0);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0}, {1}, {1}, 1, 0);
+  result = two_level_packing<FirstFit>(hypergraph, {0}, {1}, {1}, 1, 0);
   ASSERT_EQ(result.size(), 1);
   ASSERT_EQ(result.at(0), 0);
 
   initializeWeights({1, 1});
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 2, 0);
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 2, 0);
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1) || (result.at(0) == 1 && result.at(1) == 0), true);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 2, 0);
+  result = two_level_packing<FirstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 2, 0);
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1) || (result.at(0) == 1 && result.at(1) == 0), true);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 2, 2);
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 2, 2);
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1) || (result.at(0) == 1 && result.at(1) == 0), true);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 2, 2);
+  result = two_level_packing<FirstFit>(hypergraph, {0, 1}, {1, 1}, {1, 1}, 2, 2);
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 0);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {2, 2}, {1, 1}, 2, 2);
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1}, {2, 2}, {1, 1}, 2, 2);
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1) || (result.at(0) == 1 && result.at(1) == 0), true);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1}, {2, 2}, {1, 1}, 2, 2);
+  result = two_level_packing<FirstFit>(hypergraph, {0, 1}, {2, 2}, {1, 1}, 2, 2);
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 0);
@@ -111,12 +203,12 @@ TEST_F(BinPackingTest, BaseCases) {
 TEST_F(BinPackingTest, ReverseIndizes) {
   initializeWeights({1, 3, 2});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {1, 2, 0}, {3, 3}, {1, 1}, 2, 3);
+  auto result = two_level_packing<WorstFit>(hypergraph, {1, 2, 0}, {3, 3}, {1, 1}, 2, 3);
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1 && result.at(2) == 1)
     || (result.at(0) == 1 && result.at(1) == 0 && result.at(2) == 0), true);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {1, 2, 0}, {3, 3}, {1, 1}, 2, 3);
+  result = two_level_packing<FirstFit>(hypergraph, {1, 2, 0}, {3, 3}, {1, 1}, 2, 3);
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ((result.at(0) == 0 && result.at(1) == 1 && result.at(2) == 1)
     || (result.at(0) == 1 && result.at(1) == 0 && result.at(2) == 0), true);
@@ -125,7 +217,7 @@ TEST_F(BinPackingTest, ReverseIndizes) {
 TEST_F(BinPackingTest, WFTwoBinPacking) {
   initializeWeights({5, 4, 3, 2, 1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4}, {8, 8}, {1, 1}, 2, 0);
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4}, {8, 8}, {1, 1}, 2, 0);
   ASSERT_EQ(result.size(), 5);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
@@ -137,7 +229,7 @@ TEST_F(BinPackingTest, WFTwoBinPacking) {
 TEST_F(BinPackingTest, WFMultiBinPacking) {
   initializeWeights({10, 7, 3, 3, 3, 1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {0, 0, 0, 0, 0, 0}, {1, 1, 1, 1, 1, 1}, 6, 0);
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {0, 0, 0, 0, 0, 0}, {1, 1, 1, 1, 1, 1}, 6, 0);
   ASSERT_EQ(result.size(), 6);
   bool contained[6] = {false, false, false, false, false, false};
   for(size_t i = 0; i < result.size(); ++i) {
@@ -147,7 +239,7 @@ TEST_F(BinPackingTest, WFMultiBinPacking) {
     ASSERT_TRUE(contained[i]);
   }
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {10, 10, 10}, {1, 1, 1}, 3, 0);
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {10, 10, 10}, {1, 1, 1}, 3, 0);
   ASSERT_EQ(result.size(), 6);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
@@ -160,7 +252,7 @@ TEST_F(BinPackingTest, WFMultiBinPacking) {
 TEST_F(BinPackingTest, WFTwoLevelPackingBase) {
   initializeWeights({4, 3, 2, 1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {5, 5}, {3, 3}, 4, 0);
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {5, 5}, {3, 3}, 4, 0);
   ASSERT_EQ(result.size(), 4);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
@@ -171,7 +263,7 @@ TEST_F(BinPackingTest, WFTwoLevelPackingBase) {
 TEST_F(BinPackingTest, WFTwoLevelPackingComplex) {
   initializeWeights({9, 7, 6, 4, 4, 4, 4, 3, 3, 3, 3});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {25, 25}, {2, 2}, 4, 0);
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, {25, 25}, {2, 2}, 4, 0);
   // The packing in 4 bins:
   // (0.)9 (8.)3           12
   // (1.)7 (6.)4 (10.)3    14
@@ -195,17 +287,17 @@ TEST_F(BinPackingTest, WFTwoLevelPackingComplex) {
 TEST_F(BinPackingTest, WFFixedVerticesBase) {
   initializeWeights({1, 1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {2}, {1}, 1, 0, {-1, -1});
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1}, {2}, {1}, 1, 0, {-1, -1});
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 0);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {2}, {1}, 1, 0, {0, -1});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1}, {2}, {1}, 1, 0, {0, -1});
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 0);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1}, {2}, {1}, 1, 0, {0, 0});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1}, {2}, {1}, 1, 0, {0, 0});
   ASSERT_EQ(result.size(), 2);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 0);
@@ -214,35 +306,35 @@ TEST_F(BinPackingTest, WFFixedVerticesBase) {
 TEST_F(BinPackingTest, WFFixedVerticesOneLevel) {
   initializeWeights({4, 3, 2, 1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {6, 6}, {1, 1}, 2, 0, {0, 1, 0, 1});
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {6, 6}, {1, 1}, 2, 0, {0, 1, 0, 1});
   ASSERT_EQ(result.size(), 4);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
   ASSERT_EQ(result.at(2), 0);
   ASSERT_EQ(result.at(3), 1);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7, 7}, {2, 2, 2}, 3, 0, {0, 0, 2, 2});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7, 7}, {2, 2, 2}, 3, 0, {0, 0, 2, 2});
   ASSERT_EQ(result.size(), 4);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 0);
   ASSERT_EQ(result.at(2), 2);
   ASSERT_EQ(result.at(3), 2);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {2, 2}, 2, 0, {1, -1, -1, -1});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {2, 2}, 2, 0, {1, -1, -1, -1});
   ASSERT_EQ(result.size(), 4);
   ASSERT_EQ(result.at(0), 1);
   ASSERT_EQ(result.at(1), 0);
   ASSERT_EQ(result.at(2), 0);
   ASSERT_EQ(result.at(3), 1);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {2, 2}, 2, 0, {-1, -1, 0, 0});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {2, 2}, 2, 0, {-1, -1, 0, 0});
   ASSERT_EQ(result.size(), 4);
   ASSERT_EQ(result.at(0), 1);
   ASSERT_EQ(result.at(1), 0);
   ASSERT_EQ(result.at(2), 0);
   ASSERT_EQ(result.at(3), 0);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {2, 2}, 2, 0, {-1, 1, 0, -1});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {2, 2}, 2, 0, {-1, 1, 0, -1});
   ASSERT_EQ(result.size(), 4);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
@@ -253,7 +345,7 @@ TEST_F(BinPackingTest, WFFixedVerticesOneLevel) {
 TEST_F(BinPackingTest, WFFixedVerticesTwoLevel) {
   initializeWeights({7, 5, 4, 3, 2, 1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {15, 15}, {2, 2}, 4, 0, {0, 1, 0, 1, 1, 0});
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {15, 15}, {2, 2}, 4, 0, {0, 1, 0, 1, 1, 0});
   ASSERT_EQ(result.size(), 6);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
@@ -262,7 +354,7 @@ TEST_F(BinPackingTest, WFFixedVerticesTwoLevel) {
   ASSERT_EQ(result.at(4), 1);
   ASSERT_EQ(result.at(5), 0);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {12, 12, 12}, {3, 3, 3}, 9, 0, {0, 2, 0, 2, 1, 0});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {12, 12, 12}, {3, 3, 3}, 9, 0, {0, 2, 0, 2, 1, 0});
   ASSERT_EQ(result.size(), 6);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 2);
@@ -271,7 +363,7 @@ TEST_F(BinPackingTest, WFFixedVerticesTwoLevel) {
   ASSERT_EQ(result.at(4), 1);
   ASSERT_EQ(result.at(5), 0);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {15, 15}, {2, 2}, 4, 0, {-1, 1, 1, -1, -1, -1});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {15, 15}, {2, 2}, 4, 0, {-1, 1, 1, -1, -1, -1});
   ASSERT_EQ(result.size(), 6);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
@@ -280,7 +372,7 @@ TEST_F(BinPackingTest, WFFixedVerticesTwoLevel) {
   ASSERT_EQ(result.at(4), 0);
   ASSERT_EQ(result.at(5), 1);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {15, 15}, {2, 2}, 4, 0, {1, -1, -1, -1, 0, 0});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4, 5}, {15, 15}, {2, 2}, 4, 0, {1, -1, -1, -1, 0, 0});
   ASSERT_EQ(result.size(), 6);
   ASSERT_EQ(result.at(0), 1);
   ASSERT_EQ(result.at(1), 0);
@@ -293,49 +385,49 @@ TEST_F(BinPackingTest, WFFixedVerticesTwoLevel) {
 TEST_F(BinPackingTest, UnevenBase) {
   initializeWeights({4, 2, 1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2}, {4, 4}, {2, 2}, 3, 4);
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2}, {4, 4}, {2, 2}, 3, 4);
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
   ASSERT_EQ(result.at(2), 1);
 
-  bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1, 2}, {4, 4}, {2, 2}, 3, 4);
+  two_level_packing<FirstFit>(hypergraph, {0, 1, 2}, {4, 4}, {2, 2}, 3, 4);
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
   ASSERT_EQ(result.at(2), 1);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2}, {4, 4, 4}, {2, 2, 2}, 5, 4);
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2}, {4, 4, 4}, {2, 2, 2}, 5, 4);
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 2);
   ASSERT_EQ(result.at(2), 1);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1, 2}, {4, 4, 4}, {2, 2, 2}, 5, 4);
+  result = two_level_packing<FirstFit>(hypergraph, {0, 1, 2}, {4, 4, 4}, {2, 2, 2}, 5, 4);
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
   ASSERT_EQ(result.at(2), 1);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2}, {1, 6}, {2, 2}, 3, 4, {});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2}, {1, 6}, {2, 2}, 3, 4, {});
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ(result.at(0), 1);
   ASSERT_EQ(result.at(1), 1);
   ASSERT_EQ(result.at(2), 0);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1, 2}, {1, 6}, {2, 2}, 3, 2, {});
+  result = two_level_packing<FirstFit>(hypergraph, {0, 1, 2}, {1, 6}, {2, 2}, 3, 2, {});
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ(result.at(0), 1);
   ASSERT_EQ(result.at(1), 1);
   ASSERT_EQ(result.at(2), 0);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2}, {1, 6}, {2, 2}, 3, 4, {0, -1, -1});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2}, {1, 6}, {2, 2}, 3, 4, {0, -1, -1});
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
   ASSERT_EQ(result.at(2), 1);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1, 2}, {1, 6}, {2, 2}, 3, 4, {0, -1, -1});
+  result = two_level_packing<FirstFit>(hypergraph, {0, 1, 2}, {1, 6}, {2, 2}, 3, 4, {0, -1, -1});
   ASSERT_EQ(result.size(), 3);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
@@ -345,7 +437,7 @@ TEST_F(BinPackingTest, UnevenBase) {
 TEST_F(BinPackingTest, WFUnevenAndFixed) {
   initializeWeights({5, 4, 3, 3, 1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4}, {10, 10}, {2, 2}, 3, 0, {-1, 0, -1, 1, -1});
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4}, {10, 10}, {2, 2}, 3, 0, {-1, 0, -1, 1, -1});
   // The packing in 3 bins:
   // (F0)4 (3.)1           5
   // (F1)3 (2.)3           6
@@ -358,7 +450,7 @@ TEST_F(BinPackingTest, WFUnevenAndFixed) {
   ASSERT_EQ(result.at(3), 1);
   ASSERT_EQ(result.at(4), 0);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4}, {10, 10}, {2, 2}, 3, 0, {1, -1, -1, 1, 1});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4}, {10, 10}, {2, 2}, 3, 0, {1, -1, -1, 1, 1});
   ASSERT_EQ(result.size(), 5);
   ASSERT_EQ(result.at(0), 1);
   ASSERT_EQ(result.at(1), 0);
@@ -366,7 +458,7 @@ TEST_F(BinPackingTest, WFUnevenAndFixed) {
   ASSERT_EQ(result.at(3), 1);
   ASSERT_EQ(result.at(4), 1);
 
-  result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4}, {10, 6}, {2, 2}, 3, 0, {1, -1, -1, 1, 1});
+  result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3, 4}, {10, 6}, {2, 2}, 3, 0, {1, -1, -1, 1, 1});
   ASSERT_EQ(result.size(), 5);
   ASSERT_EQ(result.at(0), 1);
   ASSERT_EQ(result.at(1), 0);
@@ -378,14 +470,14 @@ TEST_F(BinPackingTest, WFUnevenAndFixed) {
 TEST_F(BinPackingTest, BinLimit) {
   initializeWeights({3, 2, 2, 1});
 
-  auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {1, 3}, 4, 2);
+  auto result = two_level_packing<WorstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {1, 3}, 4, 2);
   ASSERT_EQ(result.size(), 4);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
   ASSERT_EQ(result.at(2), 1);
   ASSERT_EQ(result.at(3), 1);
 
-  result = bin_packing::two_level_packing<FirstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {1, 3}, 4, 2);
+  result = two_level_packing<FirstFit>(hypergraph, {0, 1, 2, 3}, {7, 7}, {1, 3}, 4, 2);
   ASSERT_EQ(result.size(), 4);
   ASSERT_EQ(result.at(0), 0);
   ASSERT_EQ(result.at(1), 1);
@@ -560,11 +652,11 @@ TEST_F(BinPackingTest, TwoLevelPackingFuzzingTest) {
     }
 
     std::vector<PartitionID> partitions_copy(partitions);
-    auto result = bin_packing::two_level_packing<WorstFit>(hypergraph, nodes, max_allowed_partition_weights,
+    auto result = two_level_packing<WorstFit>(hypergraph, nodes, max_allowed_partition_weights,
       num_bins_per_partition, rb_range_k, max_bin_weight, std::move(partitions));
     ASSERT_EQ(result.size(), nodes.size());
 
-    result = bin_packing::two_level_packing<WorstFit>(hypergraph, nodes, max_allowed_partition_weights,
+    result = two_level_packing<WorstFit>(hypergraph, nodes, max_allowed_partition_weights,
       num_bins_per_partition, rb_range_k, max_bin_weight, std::move(partitions_copy));
     ASSERT_EQ(result.size(), nodes.size());
   }
