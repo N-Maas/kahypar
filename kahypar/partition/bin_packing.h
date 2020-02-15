@@ -237,8 +237,9 @@ namespace bin_packing {
                 return _alg.binWeight(bin);
             }
 
-            // ... and at the second level, the resulting k bins are packed into the final partitions
-            std::pair<PartitionMapping, HypernodeWeight> applySecondLevel(const std::vector<HypernodeWeight>& max_allowed_partition_weights,
+            // ... and at the second level, the resulting k bins are packed into the final partitions.
+            // Returns the partition mapping for the bins and a vector of the resulting partition weights
+            std::pair<PartitionMapping, std::vector<HypernodeWeight>> applySecondLevel(const std::vector<HypernodeWeight>& max_allowed_partition_weights,
                                                                           const std::vector<PartitionID>& num_bins_per_partition) {
                 ALWAYS_ASSERT(num_bins_per_partition.size() == max_allowed_partition_weights.size(),
                     "max_allowed_partition_weights and num_bins_per_partition have different sizes: "
@@ -283,7 +284,14 @@ namespace bin_packing {
                     }
                 }
 
-                return {std::move(mapping), _alg.binWeight(kbins_descending[0])};
+                // collect partition weights
+                std::vector<HypernodeWeight> part_weights;
+                part_weights.reserve(num_partitions);
+                for (PartitionID i = 0; i < num_partitions; ++i) {
+                    part_weights.push_back(partition_packer.binWeight(i));
+                }
+
+                return {std::move(mapping), std::move(part_weights)};
             }
 
         private:
@@ -511,6 +519,114 @@ namespace bin_packing {
         return partitions;
     }
 
+
+    template< class BPAlg >
+    static inline void apply_prepacking_pessimistic(Hypergraph& hg, Context& context) {
+        ALWAYS_ASSERT(!hg.containsFixedVertices(), "No fixed vertices allowed before prepacking.");
+
+        PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
+        if (rb_range_k <= context.partition.k) {
+            return;
+        }
+
+        std::vector<HypernodeWeight>& upper_weight = context.initial_partitioning.upper_allowed_partition_weight;
+        const std::vector<PartitionID>& num_bins_per_part = context.initial_partitioning.num_bins_per_partition;
+
+        ALWAYS_ASSERT(upper_weight.size() == static_cast<size_t>(context.partition.k)
+                      && num_bins_per_part.size() == static_cast<size_t>(context.partition.k),
+                      "Invalid context: " << V(context.partition.k));
+        ASSERT(context.initial_partitioning.perfect_balance_partition_weight.size() == static_cast<size_t>(context.partition.k));
+        ASSERT(context.initial_partitioning.current_max_bin >= hg.totalWeight() / rb_range_k);
+        ASSERT(std::accumulate(num_bins_per_part.cbegin(), num_bins_per_part.cend(), 0) >= rb_range_k);
+
+        HypernodeWeight max_bin_weight = floor(context.initial_partitioning.current_max_bin * (1.0 + context.initial_partitioning.bin_epsilon));
+        TwoLevelPacker<BPAlg> packer(rb_range_k, max_bin_weight);
+        std::vector<HypernodeID> nodes = extract_nodes_with_descending_weight(hg);
+        std::vector<PartitionID> partitions;
+
+        ASSERT(nodes.size() > 0);
+        ASSERT([&]() {
+            for (size_t i = 0; i < static_cast<size_t>(context.partition.k); ++i) {
+                if (upper_weight[i] < context.initial_partitioning.perfect_balance_partition_weight[i] ||
+                    upper_weight[i] > num_bins_per_part[i] * max_bin_weight - hg.nodeWeight(nodes[nodes.size() - 1])) {
+                    return false;
+                }
+            }
+            return true;
+        } (), "The hypernodes must be sorted in descending order of weight.");
+
+        std::pair<PartitionMapping, std::vector<HypernodeWeight>> packing_result = packer.applySecondLevel(upper_weight, num_bins_per_part);
+        HypernodeWeight range_weight;
+        HypernodeWeight imbalance;
+        size_t max_part;
+        size_t next_index;
+
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            ASSERT(upper_weight.size() == packing_result.second.size());
+
+            size_t max_imb_part_id = 0;
+            HypernodeWeight min_remaining = std::numeric_limits<HypernodeWeight>::max();
+            for (size_t i = 0; i < upper_weight.size(); ++i) {
+                HypernodeWeight remaining = (upper_weight[i] - packing_result.second[i]) / num_bins_per_part[i];
+
+                if (remaining < min_remaining) {
+                    max_imb_part_id = i;
+                    min_remaining = remaining;
+                }
+            }
+
+            max_part = max_imb_part_id;
+            PartitionID num_bins = num_bins_per_part[max_imb_part_id];
+            HypernodeWeight min_range_weight = upper_weight[max_imb_part_id] - packing_result.second[max_imb_part_id];
+            HypernodeWeight allowed_sub_imbalance = num_bins * max_bin_weight - upper_weight[max_imb_part_id];
+
+            // find subrange of specified weight
+            size_t j = i;
+            HypernodeWeight curr_range_weight = 0;
+            do {
+                curr_range_weight += hg.nodeWeight(nodes[j]);
+                ++j;
+            } while (j < nodes.size() && curr_range_weight <= min_range_weight);
+            next_index = j;
+
+            // calculate the heuristic of the subrange
+            HypernodeWeight current_lower_sum = 0;
+            HypernodeWeight max_imbalance = 0;
+            for (size_t k = j - 1; k >= i; --k) {
+                HypernodeWeight weight = hg.nodeWeight(nodes[i]);
+                current_lower_sum += weight;
+                max_imbalance = std::max(num_bins * weight - current_lower_sum, max_imbalance);
+            }
+
+            if (max_imbalance <= allowed_sub_imbalance) {
+                range_weight = curr_range_weight;
+                imbalance = max_imbalance;
+                break;
+            }
+
+            // insert element
+            HypernodeWeight weight = hg.nodeWeight(nodes[i]);
+            partitions.push_back(packer.insertElement(weight));
+            packing_result = packer.applySecondLevel(upper_weight, num_bins_per_part);
+        }
+
+        // calculate optimization for allowed weights
+        for (size_t i = next_index; i < nodes.size(); ++i) {
+            HypernodeWeight weight = hg.nodeWeight(nodes[i]);
+            HypernodeWeight allowed_sub_imbalance = num_bins_per_part[max_part] * max_bin_weight - packing_result.second[max_part] - range_weight - weight;
+            imbalance = std::max(imbalance - weight, (num_bins_per_part[max_part] - 1) * weight);
+
+            if (imbalance > allowed_sub_imbalance) {
+                break;
+            }
+            range_weight += weight;
+        }
+
+        // apply allowed weight
+        for (size_t i = 0; i < upper_weight.size(); ++i) {
+            upper_weight[i] = std::max(upper_weight[i], num_bins_per_part[i] * (packing_result.second[max_part] + range_weight) / num_bins_per_part[max_part]);
+        }
+    }
 
     static inline void prepack_heavy_vertices(Hypergraph& hg, const Context& context, const PartitionID& rb_range_k, bool optimistic) {
         std::vector<HypernodeID> nodes = extract_nodes_with_descending_weight(hg);
