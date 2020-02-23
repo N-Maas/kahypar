@@ -257,7 +257,7 @@ namespace bin_packing {
                 }
 
                 for (PartitionID bin = 0; bin < _alg.numBins(); ++bin) {
-                    if(mapping.isFixedBin(bin)) {
+                    if (mapping.isFixedBin(bin)) {
                         partition_packer.addWeight(mapping.binPartition(bin), _alg.binWeight(bin));
                     }
                 }
@@ -568,7 +568,8 @@ namespace bin_packing {
             size_t max_imb_part_id = 0;
             HypernodeWeight min_remaining = std::numeric_limits<HypernodeWeight>::max();
             for (size_t j = 0; j < upper_weight.size(); ++j) {
-                HypernodeWeight remaining = (upper_weight[j] - packing_result.second[j]) / num_bins_per_part[j];
+                // multiply with rb_range_k to avoid rounding errors
+                HypernodeWeight remaining = rb_range_k * (upper_weight[j] - packing_result.second[j]) / num_bins_per_part[j];
 
                 if (remaining < min_remaining) {
                     max_imb_part_id = j;
@@ -584,15 +585,15 @@ namespace bin_packing {
             // find subrange of specified weight
             size_t j = i;
             HypernodeWeight curr_range_weight = 0;
-            do {
+            while ((j < nodes.size()) && (curr_range_weight  + hg.nodeWeight(nodes[j]) <= min_range_weight)) {
                 curr_range_weight += hg.nodeWeight(nodes[j]);
                 ++j;
-            } while ((j < nodes.size()) && (curr_range_weight  + hg.nodeWeight(nodes[j]) <= min_range_weight));
+            }
             next_index = j;
 
             // calculate the heuristic of the subrange
-            HypernodeWeight current_lower_sum = 0;
-            HypernodeWeight max_imbalance = 0;
+            HypernodeWeight current_lower_sum = min_range_weight - curr_range_weight;
+            HypernodeWeight max_imbalance = (num_bins - 1) * current_lower_sum;
             for (size_t k = j; k > i; --k) {
                 HypernodeWeight weight = hg.nodeWeight(nodes[k - 1]);
                 current_lower_sum += weight;
