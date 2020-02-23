@@ -598,7 +598,7 @@ TEST_F(BinPackingTest, PrepackingPessimisticBase) {
   ASSERT_EQ(hypergraph.isFixedVertex(0), false);
 
   initializeWeights({4, 4, 4, 4});
-  Context c2 = createTestContext({9, 9}, {8, 8}, {2, 2}, 2, 4, 6);
+  Context c2 = createTestContext({12, 12}, {8, 8}, {2, 2}, 2, 4, 7);
 
   bin_packing::apply_prepacking_pessimistic<WorstFit>(hypergraph, c2);
   ASSERT_EQ(hypergraph.isFixedVertex(0), true);
@@ -608,7 +608,7 @@ TEST_F(BinPackingTest, PrepackingPessimisticBase) {
   ASSERT_EQ(hypergraph.fixedVertexPartWeight(0), 8);
 
   initializeWeights({4, 4, 4, 4});
-  Context c3 = createTestContext({9, 9}, {8, 8}, {2, 2}, 2, 4, 6);
+  Context c3 = createTestContext({12, 12}, {8, 8}, {2, 2}, 2, 4, 7);
 
   bin_packing::apply_prepacking_pessimistic<FirstFit>(hypergraph, c3);
   ASSERT_EQ(hypergraph.isFixedVertex(0), true);
@@ -616,6 +616,62 @@ TEST_F(BinPackingTest, PrepackingPessimisticBase) {
   ASSERT_EQ(hypergraph.isFixedVertex(2), true);
   ASSERT_EQ(hypergraph.isFixedVertex(3), true);
   ASSERT_EQ(hypergraph.fixedVertexPartWeight(0), 8);
+}
+
+TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
+  initializeWeights({4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1});
+  Context c1 = createTestContext({13, 13}, {12, 12}, {2, 2}, 2, 4, 7);
+
+  bin_packing::apply_prepacking_pessimistic<WorstFit>(hypergraph, c1);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), false);
+  ASSERT_EQ(hypergraph.fixedVertexPartWeight(0), 8);
+  ASSERT_EQ(hypergraph.fixedVertexPartWeight(1), 8);
+  ASSERT_EQ(c1.initial_partitioning.upper_allowed_partition_weight[0], 13);
+  ASSERT_EQ(c1.initial_partitioning.upper_allowed_partition_weight[1], 13);
+
+  initializeWeights({4, 4, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1});
+  Context c2 = createTestContext({13, 13}, {12, 12}, {2, 2}, 2, 4, 7);
+
+  bin_packing::apply_prepacking_pessimistic<FirstFit>(hypergraph, c2);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), false);
+  ASSERT_EQ(hypergraph.fixedVertexPartWeight(0), 8);
+  ASSERT_EQ(hypergraph.fixedVertexPartWeight(1), 8); 
+  ASSERT_EQ(c2.initial_partitioning.upper_allowed_partition_weight[0], 13);
+  ASSERT_EQ(c2.initial_partitioning.upper_allowed_partition_weight[1], 13);
+
+  initializeWeights({7, 7, 5, 5, 3, 2, 1, 1, 1});
+  Context c3 = createTestContext({17, 17}, {16, 16}, {2, 2}, 2, 4, 10);
+
+  bin_packing::apply_prepacking_pessimistic<WorstFit>(hypergraph, c3);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), false);
+  ASSERT_EQ(hypergraph.fixedVertexPartWeight(0), 12);
+  ASSERT_EQ(hypergraph.fixedVertexPartWeight(1), 12);
+  ASSERT_EQ(c3.initial_partitioning.upper_allowed_partition_weight[0], 19);
+  ASSERT_EQ(c3.initial_partitioning.upper_allowed_partition_weight[1], 19);
+
+  initializeWeights({7, 7, 5, 5, 3, 2, 1, 1, 1});
+  Context c4 = createTestContext({17, 17}, {16, 16}, {2, 2}, 2, 4, 10);
+
+  bin_packing::apply_prepacking_pessimistic<FirstFit>(hypergraph, c4);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), false);
+  ASSERT_EQ(hypergraph.fixedVertexPartWeight(0), 14);
+  ASSERT_EQ(hypergraph.fixedVertexPartWeight(1), 0);
+  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[0], 17);
+  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[1], 17);
 }
 
 TEST_F(BinPackingTest, TwoLevelPackingFuzzingTest) {
