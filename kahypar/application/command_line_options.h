@@ -390,7 +390,8 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     "Balancing strategy for vertex weights:\n"
     " - none\n"
     " - prepacking_pessimistic\n"
-    " - prepacking_optimistic"
+    " - prepacking_optimistic\n"
+    " - prepacking_dynamic"
     "(default: none)")
     ("i-epsilon-type",
     po::value<std::string>()->value_name("<string>")->notifier(

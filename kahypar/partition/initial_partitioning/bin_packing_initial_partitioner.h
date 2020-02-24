@@ -95,7 +95,9 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
     Base::resetPartitioning();
     initializeNodes();
 
-    std::vector<PartitionID> partitions = bin_packing::apply_bin_packing_to_nodes(_hg, _context, _descending_nodes);
+    std::vector<PartitionID> partitions = _context.initial_partitioning.bp_algo == BinPackingAlgorithm::worst_fit ?
+      bin_packing::apply_bin_packing_to_nodes<bin_packing::WorstFit>(_hg, _context, _descending_nodes) :
+      bin_packing::apply_bin_packing_to_nodes<bin_packing::FirstFit>(_hg, _context, _descending_nodes);
 
     for (size_t i = 0; i < _descending_nodes.size(); ++i) {
       HypernodeID hn = _descending_nodes[i];

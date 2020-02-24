@@ -182,6 +182,7 @@ enum class WeightBalancingStrategy : uint8_t {
   none,
   prepacking_pessimistic,
   prepacking_optimistic,
+  prepacking_dynamic,
   UNDEFINED
 };
 
@@ -450,6 +451,7 @@ std::ostream& operator<< (std::ostream& os, const WeightBalancingStrategy& balan
     case WeightBalancingStrategy::none: return os << "none";
     case WeightBalancingStrategy::prepacking_pessimistic: return os << "prepacking_pessimistic";
     case WeightBalancingStrategy::prepacking_optimistic: return os << "prepacking_optimistic";
+    case WeightBalancingStrategy::prepacking_dynamic: return os << "prepacking_dynamic";
     case WeightBalancingStrategy::UNDEFINED: return os << "UNDEFINED";
       // omit default case to trigger compiler warning for missing cases
   }
@@ -728,6 +730,8 @@ static WeightBalancingStrategy weightBalancingStrategyFromString(const std::stri
     return WeightBalancingStrategy::prepacking_pessimistic;
   } else if (type == "prepacking_optimistic") {
     return WeightBalancingStrategy::prepacking_optimistic;
+  } else if (type == "prepacking_dynamic") {
+    return WeightBalancingStrategy::prepacking_dynamic;
   }
   LOG << "Illegal option:" << type;
   exit(0);
