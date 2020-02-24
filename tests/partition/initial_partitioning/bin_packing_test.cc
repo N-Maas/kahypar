@@ -670,9 +670,10 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   ASSERT_EQ(hypergraph.isFixedVertex(2), false);
   ASSERT_EQ(hypergraph.fixedVertexPartWeight(0), 14);
   ASSERT_EQ(hypergraph.fixedVertexPartWeight(1), 0);
-  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[0], 17);
-  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[1], 17);
+  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[0], 18);
+  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[1], 18);
 
+  // tests for end of range failure
   initializeWeights({50, 50, 50, 1});
   Context c5= createTestContext({140, 140}, {76, 76}, {2, 2}, 2, 4, 75);
 
@@ -690,6 +691,7 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   ASSERT_EQ(hypergraph.isFixedVertex(1), true);
   ASSERT_EQ(hypergraph.isFixedVertex(2), false);
 
+  // tests for less-pessimistic calculation
   initializeWeights({8, 8, 8, 8, 4, 4, 3});
   Context c7 = createTestContext({26, 26}, {22, 22}, {2, 2}, 2, 4, 14);
 
@@ -699,6 +701,7 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   ASSERT_EQ(hypergraph.isFixedVertex(2), true);
   ASSERT_EQ(hypergraph.isFixedVertex(3), true);
   ASSERT_EQ(hypergraph.isFixedVertex(4), false);
+  ASSERT_EQ(hypergraph.isFixedVertex(5), false);
 
   initializeWeights({8, 8, 8, 8, 4, 4, 3});
   Context c8 = createTestContext({26, 26}, {22, 22}, {2, 2}, 2, 4, 14);
@@ -709,6 +712,20 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   ASSERT_EQ(hypergraph.isFixedVertex(2), true);
   ASSERT_EQ(hypergraph.isFixedVertex(3), true);
   ASSERT_EQ(hypergraph.isFixedVertex(4), false);
+  ASSERT_EQ(hypergraph.isFixedVertex(5), false);
+
+
+  // tests handling of full partition edge case
+  initializeWeights({4, 4, 4, 3, 3, 3, 3, 3, 3});
+  Context c9 = createTestContext({15, 15}, {15, 15}, {3, 3}, 2, 6, 6);
+
+  bin_packing::apply_prepacking_pessimistic<FirstFit>(hypergraph, c9);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(5), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(6), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(7), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(8), true);
 }
 
 TEST_F(BinPackingTest, TwoLevelPackingFuzzingTest) {

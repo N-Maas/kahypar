@@ -568,8 +568,15 @@ namespace bin_packing {
             size_t max_imb_part_id = 0;
             HypernodeWeight min_remaining = std::numeric_limits<HypernodeWeight>::max();
             for (size_t j = 0; j < upper_weight.size(); ++j) {
+                // skip valid full partitions - those can not provide an upper bound, as the heuristic is empty
+                HypernodeWeight empty = upper_weight[j] - packing_result.second[j];
+                HypernodeWeight allowed = num_bins_per_part[j] * max_bin_weight - upper_weight[j];
+                if (hg.nodeWeight(nodes[j]) > empty && (num_bins_per_part[j] - 1) * empty <= allowed) {
+                    continue;
+                }
+
                 // multiply with rb_range_k to avoid rounding errors
-                HypernodeWeight remaining = rb_range_k * (upper_weight[j] - packing_result.second[j]) / num_bins_per_part[j];
+                HypernodeWeight remaining = rb_range_k * empty / num_bins_per_part[j];
 
                 if (remaining < min_remaining) {
                     max_imb_part_id = j;
