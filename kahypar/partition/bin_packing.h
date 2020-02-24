@@ -592,7 +592,7 @@ namespace bin_packing {
             next_index = j;
 
             // calculate the heuristic of the subrange
-            HypernodeWeight current_lower_sum = min_range_weight - curr_range_weight;
+            HypernodeWeight current_lower_sum = (j == nodes.size()) ? 0 : min_range_weight - curr_range_weight;
             HypernodeWeight max_imbalance = (num_bins - 1) * current_lower_sum;
             for (size_t k = j; k > i; --k) {
                 HypernodeWeight weight = hg.nodeWeight(nodes[k - 1]);
