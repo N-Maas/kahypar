@@ -94,7 +94,7 @@ namespace bin_packing {
 
         protected:
             void assertBinIsValid(PartitionID bin) const {
-                ASSERT(bin >= 0 && static_cast<size_t>(bin) < _partitions.size(), "Invalid bin id.");
+                ASSERT(bin >= 0 && static_cast<size_t>(bin) < _partitions.size(), "Invalid bin id: " << V(bin));
             }
 
         private:
@@ -113,7 +113,7 @@ namespace bin_packing {
             }
 
             void addWeight(PartitionID bin, HypernodeWeight weight) {
-                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id.");
+                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id: " << V(bin));
 
                 _bin_queue.increaseKeyBy(bin, weight);
             }
@@ -129,7 +129,7 @@ namespace bin_packing {
             }
 
             void lockBin(PartitionID bin) {
-                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id.");
+                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id: " << V(bin));
                 ASSERT(_bin_queue.contains(bin), "Bin already locked.");
 
                 if (_weights.empty()) {
@@ -140,7 +140,7 @@ namespace bin_packing {
             }
 
             HypernodeWeight binWeight(PartitionID bin) {
-                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id.");
+                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id: " << V(bin));
 
                 return _bin_queue.contains(bin) ? _bin_queue.getKey(bin) : _weights[bin];
             }
@@ -163,7 +163,7 @@ namespace bin_packing {
                 _num_bins(num_bins) { }
 
             void addWeight(PartitionID bin, HypernodeWeight weight) {
-                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id.");
+                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id: " << V(bin));
 
                 _bins[bin].first += weight;
             }
@@ -192,14 +192,14 @@ namespace bin_packing {
             }
 
             void lockBin(PartitionID bin) {
-                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id.");
+                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id: " << V(bin));
                 ASSERT(!_bins[bin].second, "Bin already locked.");
 
                 _bins[bin].second = true;
             }
 
             HypernodeWeight binWeight(PartitionID bin) {
-                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id.");
+                ASSERT(bin >= 0 && bin < _num_bins, "Invalid bin id: " << V(bin));
 
                 return _bins[bin].first;
             }
@@ -466,7 +466,7 @@ namespace bin_packing {
 
                 if (hg.isFixedVertex(hn)) {
                     HypernodeWeight weight = hg.nodeWeight(nodes[i]);
-                    PartitionID part_id = partitions[i];
+                    PartitionID part_id = hg.fixedVertexPartID(nodes[i]);
 
                     PartitionID start_index = part_id * kbins_per_partition;
                     PartitionID assigned_bin = start_index;

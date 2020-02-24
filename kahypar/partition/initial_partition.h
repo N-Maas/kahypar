@@ -137,7 +137,7 @@ static inline Context createContext(const Hypergraph& hg,
 }
 
 
-static inline void partition(Hypergraph& hg, const Context& context) {
+static inline void partition(Hypergraph& hg, const Context& context, const std::vector<HypernodeWeight>& adjusted_upper_weight = std::vector<HypernodeWeight>()) {
   auto extracted_init_hypergraph = ds::reindex(hg);
   Hypergraph& init_hg = *extracted_init_hypergraph.first;
   std::vector<HypernodeID> mapping(std::move(extracted_init_hypergraph.second));
@@ -151,6 +151,14 @@ static inline void partition(Hypergraph& hg, const Context& context) {
   // we do not want to use the community structure used during coarsening in initial partitioning
   init_hg.resetCommunities();
   Context init_context = createContext(init_hg, context);
+
+  // TODO: this is a bad hack
+  if (adjusted_upper_weight.size() > 0) {
+    ASSERT(init_context.initial_partitioning.upper_allowed_partition_weight.size() == adjusted_upper_weight.size(),
+           "Different partition sizes: " << V(init_context.initial_partitioning.upper_allowed_partition_weight.size())
+           << " - " << V(adjusted_upper_weight.size()));
+    init_context.initial_partitioning.upper_allowed_partition_weight = adjusted_upper_weight;
+  }
 
   if (context.initial_partitioning.verbose_output) {
     LOG << "Calling Initial Partitioner:" << context.initial_partitioning.technique

@@ -43,7 +43,7 @@ static inline void partition(Hypergraph& hypergraph,
   ASSERT(!hypergraph.containsFixedVertices(), "Fixed vertices not allowed here.");
   io::printCoarseningBanner(context);
 
-  Context ip_context(context);
+  std::vector<HypernodeWeight> adjusted_weight;
   PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
   // TODO this is fragile, as it depends on rb_range_k == 1 before top-level coarsening
     // perform prepacking of heavy vertices
@@ -59,7 +59,7 @@ static inline void partition(Hypergraph& hypergraph,
     } else {
       bin_packing::apply_prepacking_pessimistic<bin_packing::FirstFit>(hypergraph, packing_context);
     }
-    ip_context.initial_partitioning.upper_allowed_partition_weight = packing_context.initial_partitioning.upper_allowed_partition_weight;
+    adjusted_weight = packing_context.initial_partitioning.upper_allowed_partition_weight;
   }
 
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -79,7 +79,7 @@ static inline void partition(Hypergraph& hypergraph,
     io::printInitialPartitioningBanner(context);
 
     start = std::chrono::high_resolution_clock::now();
-    initial::partition(hypergraph, ip_context);
+    initial::partition(hypergraph, context, adjusted_weight);
     end = std::chrono::high_resolution_clock::now();
     Timer::instance().add(context, Timepoint::initial_partitioning,
                           std::chrono::duration<double>(end - start).count());
