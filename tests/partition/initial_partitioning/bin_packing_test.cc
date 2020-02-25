@@ -670,8 +670,8 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   ASSERT_EQ(hypergraph.isFixedVertex(2), false);
   ASSERT_EQ(hypergraph.fixedVertexPartWeight(0), 14);
   ASSERT_EQ(hypergraph.fixedVertexPartWeight(1), 0);
-  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[0], 18);
-  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[1], 18);
+  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[0], 17);
+  ASSERT_EQ(c4.initial_partitioning.upper_allowed_partition_weight[1], 17);
 
   // tests for end of range failure
   initializeWeights({50, 50, 50, 1});
@@ -726,6 +726,19 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   ASSERT_EQ(hypergraph.isFixedVertex(6), true);
   ASSERT_EQ(hypergraph.isFixedVertex(7), true);
   ASSERT_EQ(hypergraph.isFixedVertex(8), true);
+
+  // tests optimization in full partition edge case
+  initializeWeights({5, 5, 3, 3, 3, 2, 1, 1});
+  Context c10 = createTestContext({12, 12}, {12, 12}, {2, 2}, 2, 4, 7);
+
+  bin_packing::apply_prepacking_pessimistic<FirstFit>(hypergraph, c10);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), false);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), false);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), false);
+  ASSERT_EQ(c10.initial_partitioning.upper_allowed_partition_weight[0], 12);
+  ASSERT_EQ(c10.initial_partitioning.upper_allowed_partition_weight[1], 12);
 }
 
 TEST_F(BinPackingTest, TwoLevelPackingFuzzingTest) {
