@@ -54,6 +54,19 @@ static inline void partition(Hypergraph& hypergraph,
     bin_packing::prepack_heavy_vertices(hypergraph, packing_context, rb_range_k, optimistic);
   } else if (context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking_dynamic && (rb_range_k > 2)) {
     Context packing_context = initial::createContext(hypergraph, context);
+    HypernodeWeight max_bin_weight = floor(packing_context.initial_partitioning.current_max_bin * (1.0 + packing_context.initial_partitioning.bin_epsilon));
+    for (size_t i = 0; i < packing_context.initial_partitioning.k; ++i) {
+      HypernodeWeight lower = packing_context.initial_partitioning.perfect_balance_partition_weight[i];
+      HypernodeWeight& border = packing_context.initial_partitioning.upper_allowed_partition_weight[i];
+      HypernodeWeight upper = packing_context.initial_partitioning.num_bins_per_partition[i] * max_bin_weight;
+
+      // TODO ugly magic numbers
+      if (upper - border < (border - lower) / 10) {
+        border = (lower + upper) / 2;
+        packing_context.partition.epsilon = static_cast<double>(border) / static_cast<double>(lower) - 1.0;
+      }
+    }
+
     if (context.initial_partitioning.bp_algo ==  BinPackingAlgorithm::worst_fit) {
       bin_packing::apply_prepacking_pessimistic<bin_packing::WorstFit>(hypergraph, packing_context);
     } else {

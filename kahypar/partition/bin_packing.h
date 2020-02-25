@@ -632,7 +632,7 @@ namespace bin_packing {
         }
 
         // calculate optimization for allowed weights
-        size_t max_part_idx = get_max_part_idx(context, packing_result.second, hg.nodeWeight(nodes[i]), false);
+        size_t max_part_idx = get_max_part_idx(context, packing_result.second, 0, false);
         PartitionID num_bins = num_bins_per_part[max_part_idx];
         HypernodeWeight range_weight = 0;
         HypernodeWeight imbalance = 0;

@@ -158,6 +158,8 @@ static inline void partition(Hypergraph& hg, const Context& context, const std::
            "Different partition sizes: " << V(init_context.initial_partitioning.upper_allowed_partition_weight.size())
            << " - " << V(adjusted_upper_weight.size()));
     init_context.initial_partitioning.upper_allowed_partition_weight = adjusted_upper_weight;
+    init_context.partition.epsilon = static_cast<double>(adjusted_upper_weight[0])
+                                     / static_cast<double>(init_context.initial_partitioning.perfect_balance_partition_weight[0]) - 1.0;
   }
 
   if (context.initial_partitioning.verbose_output) {
