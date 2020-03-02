@@ -283,38 +283,32 @@ static inline void connectivityStats(const Hypergraph& hypergraph,
 
 // TODO refactor with bin_packing::binImbalance
 // Assumes that the final partitions are of equal size (is this always true?).
-static inline double finalLevelBinImbalance(const Hypergraph& hypergraph, const Context& context) {
+static inline HypernodeWeight resultingMaxBin(const Hypergraph& hypergraph, const Context& context) {
   using kahypar::ds::BinaryMinHeap;
 
   ASSERT(!context.partition.perfect_balance_part_weights.empty());
   ASSERT(context.partition.k == 2 || context.partition.use_individual_part_weights ||
-         context.partition.perfect_balance_part_weights[0]
-         == context.partition.perfect_balance_part_weights[1],
+         context.partition.perfect_balance_part_weights[0] == context.partition.perfect_balance_part_weights[1],
          "Imbalance cannot be calculated correctly");
 
   PartitionID num_parts = context.initial_partitioning.k;
-  PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
-  bool equal_parts = (rb_range_k % num_parts) == 0;
-  PartitionID k_per_part = rb_range_k / num_parts;
-  HypernodeWeight avgPartWeight = (hypergraph.totalWeight() + num_parts - 1) / num_parts;
 
   // initialize queues
   std::vector<BinaryMinHeap<PartitionID, HypernodeWeight>> part_queues;
-  for(PartitionID i = 0; i < num_parts; ++i) {
-    // TODO is this good handling of unequal partitions?
-    PartitionID current_k = equal_parts || (context.partition.perfect_balance_part_weights[i] < avgPartWeight) ?
-                            k_per_part : k_per_part + 1;
-
+  part_queues.reserve(num_parts);
+  for (PartitionID i = 0; i < num_parts; ++i) {
+    PartitionID current_k = context.initial_partitioning.num_bins_per_partition[i];
     BinaryMinHeap<PartitionID, HypernodeWeight> queue(current_k);
-    for(PartitionID j = 0; j < current_k; ++j) {
+    for (PartitionID j = 0; j < current_k; ++j) {
         queue.push(j, 0);
     }
     part_queues.push_back(std::move(queue));
   }
 
   // assign nodes
-  std::vector<HypernodeID> hypernodes = kahypar::bin_packing::extract_nodes_with_descending_weight(hypergraph);
-  for(const HypernodeID& hn : hypernodes) {
+  std::vector<HypernodeID> hypernodes = bin_packing::extract_nodes_with_descending_weight(hypergraph);
+
+  for (const HypernodeID& hn : hypernodes) {
     PartitionID part_id = hypergraph.partID(hn);
 
     ALWAYS_ASSERT(part_id >= 0 && part_id < num_parts,
@@ -333,8 +327,7 @@ static inline double finalLevelBinImbalance(const Hypergraph& hypergraph, const 
     max = std::max(queue.getKey(queue.top()), max);
   }
 
-  HypernodeWeight avgBinWeight = (hypergraph.totalWeight() + rb_range_k - 1) / rb_range_k;
-  return std::max(0.0, (max / static_cast<double>(avgBinWeight)) - 1);
+  return max;
 }
 
 }  // namespace metrics

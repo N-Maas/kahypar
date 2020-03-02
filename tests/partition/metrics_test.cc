@@ -134,11 +134,13 @@ class WeightedHypergraph : public Test {
       PartitionID k_per_part = k / num_parts;
       PartitionID bigger_parts = k % num_parts;
       HypernodeWeight avgPartWeight = (hypergraph.totalWeight() + k - 1) / k;
+      context.initial_partitioning.num_bins_per_partition.clear();
       context.partition.perfect_balance_part_weights.clear();
 
       for (PartitionID i = 0; i < num_parts; ++i) {
-        HypernodeWeight part_weight = (i < bigger_parts ? k_per_part + 1 : k_per_part) * avgPartWeight;
-        context.partition.perfect_balance_part_weights.push_back(part_weight);
+        PartitionID curr_k = i < bigger_parts ? k_per_part + 1 : k_per_part;
+        context.initial_partitioning.num_bins_per_partition.push_back(curr_k);
+        context.partition.perfect_balance_part_weights.push_back(curr_k * avgPartWeight);
       }
       context.partition.use_individual_part_weights = bigger_parts > 0;
     }
@@ -166,27 +168,27 @@ TEST_F(TheDemoHypergraph, HasAvgHypernodeDegree12Div7) {
 
 TEST_F(WeightedHypergraph, NoBinImbalance) {
   initialize({1, 1}, {0, 1}, 2, 2);
-  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(0));
+  ASSERT_THAT(resultingMaxBin(hypergraph, context), Eq(1));
 
   initialize({1, 2, 1, 1, 1, 2}, {0, 1, 0, 0, 0, 1}, 2, 4);
-  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(0));
+  ASSERT_THAT(resultingMaxBin(hypergraph, context), Eq(2));
 
   initialize({2, 3, 1, 3}, {0, 1, 0, 2}, 3, 3);
-  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(0));
+  ASSERT_THAT(resultingMaxBin(hypergraph, context), Eq(3));
 
   initialize({2, 2, 2}, {0, 0, 1}, 2, 3);
-  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(0));
+  ASSERT_THAT(resultingMaxBin(hypergraph, context), Eq(2));
 }
 
 TEST_F(WeightedHypergraph, WithBinImbalance) {
   initialize({1, 4}, {0, 1}, 2, 2);
-  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(1.0 / 3.0));
+  ASSERT_THAT(resultingMaxBin(hypergraph, context), Eq(4));
 
   initialize({3, 1, 1, 1, 1, 1}, {0, 0, 1, 1, 1, 1}, 2, 4);
-  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(1.0 / 2.0));
+  ASSERT_THAT(resultingMaxBin(hypergraph, context), Eq(3));
 
   initialize({3, 1, 2, 1, 2, 2}, {1, 0, 0, 0, 2, 2}, 3, 4);
-  ASSERT_THAT(finalLevelBinImbalance(hypergraph, context), DoubleEq(1.0 / 3.0));
+  ASSERT_THAT(resultingMaxBin(hypergraph, context), Eq(4));
 }
 }  // namespace metrics
 }  // namespace kahypar
