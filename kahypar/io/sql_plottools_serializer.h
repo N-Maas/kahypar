@@ -133,6 +133,9 @@ static inline void serialize(const Context& context, const Hypergraph& hypergrap
         << " IP_balancing=" << context.initial_partitioning.balancing
         << " IP_epsilon_type=" << context.initial_partitioning.e_type
         << " IP_bin_packing_algo=" << context.initial_partitioning.bp_algo
+        << " IP_use_increased_epsilon=" << context.initial_partitioning.use_increased_epsilon
+        << " IP_infeasible_early_restart=" << context.initial_partitioning.infeasible_early_restart
+        << " IP_infeasible_late_restart=" << context.initial_partitioning.infeasible_late_restart
         << " IP_coarsening_algo=" << context.initial_partitioning.coarsening.algorithm
         << " IP_coarsening_max_allowed_weight_multiplier="
         << context.initial_partitioning.coarsening.max_allowed_weight_multiplier
