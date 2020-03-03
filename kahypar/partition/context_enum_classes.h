@@ -763,6 +763,6 @@ static BinPackingAlgorithm binPackingAlgorithmFromString(const std::string& type
   }
   LOG << "Illegal option:" << type;
   exit(0);
-  return BinPackingAlgorithm::UNDEFINED;
+  return BinPackingAlgorithm::worst_fit;
 }
 }  // namespace kahypar

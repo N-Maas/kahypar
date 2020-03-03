@@ -137,7 +137,9 @@ static inline Context createContext(const Hypergraph& hg,
 }
 
 
-static inline void partition(Hypergraph& hg, const Context& context, const std::vector<HypernodeWeight>& adjusted_upper_weight = std::vector<HypernodeWeight>()) {
+static inline void partition(Hypergraph& hg,
+                             const Context& context,
+                             const std::vector<HypernodeWeight>& adjusted_upper_weight = std::vector<HypernodeWeight>()) {
   auto extracted_init_hypergraph = ds::reindex(hg);
   Hypergraph& init_hg = *extracted_init_hypergraph.first;
   std::vector<HypernodeID> mapping(std::move(extracted_init_hypergraph.second));

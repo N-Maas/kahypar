@@ -153,13 +153,12 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
     if (currLevel != level) {
       hypergraph.reset();
 
-      // TODO this is broken
       std::string key("restarts_early_level_");
       key += std::to_string(static_cast<uint8_t>(currLevel));
       stats.add(StatTag::InitialPartitioning, key, 1.0);
     }
 
-    if (context.initial_partitioning.use_increased_epsilon && bin_packing::usesIncreasedEpsilon(level)) {
+    if (context.initial_partitioning.use_increased_epsilon && bin_packing::usesIncreasedEpsilon(currLevel)) {
       packing_context.partition.epsilon = (1.0 + context.initial_partitioning.bin_epsilon) * context.initial_partitioning.current_max_bin
                                           / ceil(static_cast<double>(hypergraph.totalWeight()) / rb_range_k) - 1;
     } else {
