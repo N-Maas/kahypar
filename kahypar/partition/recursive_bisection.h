@@ -39,6 +39,7 @@ static constexpr bool debug = false;
 
 using HypergraphPtr = std::unique_ptr<Hypergraph, void (*)(Hypergraph*)>;
 using MappingStack = std::vector<std::vector<HypernodeID> >;
+using bin_packing::BalancingLevel;
 
 enum class RBHypergraphState : std::uint8_t {
   unpartitioned,
@@ -52,11 +53,15 @@ class RBState {
           const PartitionID uk) :
     hypergraph(std::move(h)),
     state(s),
+    level(BalancingLevel::none),
+    isFeasible(true),
     lower_k(lk),
     upper_k(uk) { }
 
   HypergraphPtr hypergraph;
   RBHypergraphState state;
+  BalancingLevel level;
+  bool isFeasible;
   const PartitionID lower_k;
   const PartitionID upper_k;
 };
@@ -146,6 +151,7 @@ static inline Context createCurrentBisectionContext(const Context& original_cont
     current_context.partition.epsilon = calculateRelaxedEpsilon(original_hypergraph.totalWeight(),
                                                                 current_hypergraph.totalWeight(),
                                                                 current_k, original_context);
+    // TODO this could be cached
     HypernodeWeight current_max_bin = bin_packing::maxBinWeight(current_hypergraph, current_k);
     double current_imb = imbalanceValue(original_hypergraph.totalWeight(), current_max_bin, original_context);
     current_context.initial_partitioning.bin_epsilon = calculateEpsilonFromBinImbalance(current_imb, current_k, original_context);
@@ -267,16 +273,45 @@ static inline void partition(Hypergraph& input_hypergraph,
     const PartitionID k1 = hypergraph_stack.back().lower_k;
     const PartitionID k2 = hypergraph_stack.back().upper_k;
     const RBHypergraphState state = hypergraph_stack.back().state;
+    const BalancingLevel level = hypergraph_stack.back().level;
     const PartitionID k = k2 - k1 + 1;
     const PartitionID km = k / 2;
+    const HypernodeWeight maxFeasibleBin = ceil((1.0 + original_context.partition.epsilon)
+                                             * static_cast<double>(input_hypergraph.totalWeight())
+                                             / static_cast<double>(original_context.partition.k));
 
     switch (state) {
-      case RBHypergraphState::finished:
-        hypergraph_stack.pop_back();
-        if (!mapping_stack.empty()) {
-          mapping_stack.pop_back();
+      case RBHypergraphState::finished: {
+          if (original_context.initial_partitioning.infeasible_late_restart && k > 2) {
+            ASSERT(!original_context.partition.use_individual_part_weights,
+                   "Individual part weights are ot allowed for bin packing.");
+
+            bool balanced = true;
+            for (PartitionID i = k1; i <= k2; ++i) {
+              if (input_hypergraph.partWeight(i) > maxFeasibleBin) {
+                balanced = false;
+              }
+            }
+
+            hypergraph_stack.back().level = bin_packing::increaseBalancingRestrictions(level);
+
+            if (!balanced && hypergraph_stack.back().isFeasible && hypergraph_stack.back().level != BalancingLevel::STOP) {
+              current_hypergraph.reset();
+              hypergraph_stack.back().state = RBHypergraphState::unpartitioned;
+
+              std::string key("restarts_late_level_");
+              key += std::to_string(static_cast<uint8_t>(hypergraph_stack.back().level));
+              original_context.stats.add(StatTag::InitialPartitioning, key, 1.0);
+              break;
+            }
+          }
+
+          hypergraph_stack.pop_back();
+          if (!mapping_stack.empty()) {
+            mapping_stack.pop_back();
+          }
+          break;
         }
-        break;
       case RBHypergraphState::unpartitioned: {
           Context current_context =
             createCurrentBisectionContext(original_context,
@@ -349,15 +384,16 @@ static inline void partition(Hypergraph& input_hypergraph,
           ASSERT(coarsener.get() != nullptr, "coarsener not found");
           ASSERT(refiner.get() != nullptr, "refiner not found");
 
-          // TODO rather ugly
+          // TODO rather ugly (?)
           if (current_hypergraph.initialNumNodes() > 0 && k > 2) {
             ASSERT(!(original_context.partition.use_individual_part_weights
                    && original_context.initial_partitioning.infeasible_early_restart),
                    "Individual part weights are ot allowed for bin packing.");
-            HypernodeWeight maxFeasibleBin = original_context.partition.max_part_weights[k1];
+            bool feasible = current_context.initial_partitioning.current_max_bin <= maxFeasibleBin;
+            hypergraph_stack.back().isFeasible = feasible;
             multilevel::partitionRepeatedOnInfeasible(current_hypergraph, *coarsener, *refiner, current_context,
-                                                      original_context.stats, bin_packing::BalancingLevel::none, maxFeasibleBin,
-                                                      current_context.initial_partitioning.infeasible_early_restart);
+                                                      original_context.stats, level, maxFeasibleBin,
+                                                      feasible && current_context.initial_partitioning.infeasible_early_restart);
           } else if (current_hypergraph.initialNumNodes() > 0) {
             multilevel::partition(current_hypergraph, *coarsener, *refiner, current_context);
           }

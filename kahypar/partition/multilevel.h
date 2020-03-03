@@ -143,7 +143,6 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
                                                  const HypernodeWeight maxFeasibleBin,
                                                  bool repeat) {
   PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
-  repeat = repeat && context.initial_partitioning.current_max_bin <= maxFeasibleBin;
   ASSERT(rb_range_k > 2, "Prepacking is not allowed for k <= 2: " << V(context.partition.rb_upper_k) << " - " << context.partition.rb_lower_k);
 
   Context packing_context = initial::createContext(hypergraph, context);
@@ -171,8 +170,8 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
 
     partition(hypergraph, coarsener, refiner, context, packing_context.initial_partitioning.upper_allowed_partition_weight);
     currLevel = bin_packing::increaseBalancingRestrictions(currLevel);
-  } while (metrics::resultingMaxBin(hypergraph, packing_context) > maxFeasibleBin
-           && currLevel != BalancingLevel::STOP && repeat);
+  } while (repeat && currLevel != BalancingLevel::STOP
+           && metrics::resultingMaxBin(hypergraph, packing_context) > maxFeasibleBin);
 }
 }  // namespace multilevel
 }  // namespace kahypar
