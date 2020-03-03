@@ -146,8 +146,10 @@ static inline Context createCurrentBisectionContext(const Context& original_cont
     current_context.partition.epsilon = calculateRelaxedEpsilon(original_hypergraph.totalWeight(),
                                                                 current_hypergraph.totalWeight(),
                                                                 current_k, original_context);
-    current_context.initial_partitioning.bin_epsilon = current_context.partition.epsilon;
-    current_context.initial_partitioning.current_max_bin = ceil(static_cast<double>(current_hypergraph.totalWeight()) / current_k);
+    HypernodeWeight current_max_bin = bin_packing::maxBinWeight(current_hypergraph, current_k);
+    double current_imb = imbalanceValue(original_hypergraph.totalWeight(), current_max_bin, original_context);
+    current_context.initial_partitioning.bin_epsilon = calculateEpsilonFromBinImbalance(current_imb, current_k, original_context);
+    current_context.initial_partitioning.current_max_bin = current_max_bin;
   }
   ASSERT(original_context.partition.use_individual_part_weights ||
          current_context.partition.epsilon > 0.0, "start partition already too imbalanced");
@@ -347,7 +349,16 @@ static inline void partition(Hypergraph& input_hypergraph,
           ASSERT(coarsener.get() != nullptr, "coarsener not found");
           ASSERT(refiner.get() != nullptr, "refiner not found");
 
-          if (current_hypergraph.initialNumNodes() > 0) {
+          // TODO rather ugly
+          if (current_hypergraph.initialNumNodes() > 0 && k > 2) {
+            ASSERT(!(original_context.partition.use_individual_part_weights
+                   && original_context.initial_partitioning.infeasible_early_restart),
+                   "Individual part weights are ot allowed for bin packing.");
+            HypernodeWeight maxFeasibleBin = original_context.partition.max_part_weights[k1];
+            multilevel::partitionRepeatedOnInfeasible(current_hypergraph, *coarsener, *refiner, current_context,
+                                                      original_context.stats, bin_packing::BalancingLevel::none, maxFeasibleBin,
+                                                      current_context.initial_partitioning.infeasible_early_restart);
+          } else if (current_hypergraph.initialNumNodes() > 0) {
             multilevel::partition(current_hypergraph, *coarsener, *refiner, current_context);
           }
 

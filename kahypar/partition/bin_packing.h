@@ -33,6 +33,45 @@ namespace bin_packing {
     using kahypar::ds::BinaryMinHeap;
     using kahypar::ds::BinaryMaxHeap;
 
+    enum class BalancingLevel : uint8_t {
+        none,
+        optimistic,
+        guaranteed,
+        STOP
+    };
+
+    BalancingLevel increaseBalancingRestrictions(BalancingLevel previous) {
+        switch (previous) {
+            case BalancingLevel::none:
+                return BalancingLevel::optimistic;
+            case BalancingLevel::optimistic:
+                return BalancingLevel::guaranteed;
+            case BalancingLevel::guaranteed:
+                return BalancingLevel::STOP;
+            case BalancingLevel::STOP:
+                break;
+                // omit default case to trigger compiler warning for missing cases
+        }
+        ASSERT(false, "Tried to increase invalid balancing level: " << static_cast<uint8_t>(previous));
+        return previous;
+    }
+
+    bool usesIncreasedEpsilon(BalancingLevel level) {
+        switch (level) {
+            case BalancingLevel::none:
+                return true;
+            case BalancingLevel::optimistic:
+                return true;
+            case BalancingLevel::guaranteed:
+                return false;
+            case BalancingLevel::STOP:
+                break;
+                // omit default case to trigger compiler warning for missing cases
+        }
+        ASSERT(false, "Invalid balancing level: " << static_cast<uint8_t>(level));
+        return false;
+    }
+
     // Bin packing algorithm classes
     //
     // The following operations must be available for a type BPAlg:
@@ -679,6 +718,36 @@ namespace bin_packing {
 
         for (size_t i = 0; i < nodes.size(); ++i) {
             hg.setFixedVertex(nodes[i], partitions[i]);
+        }
+    }
+
+    static inline void applyPrepacking(Hypergraph& hypergraph, Context& context, const BalancingLevel level) {
+        ASSERT(!hypergraph.containsFixedVertices(), "Fixed vertices not allowed here.");
+        ASSERT(level != BalancingLevel::STOP, "Invalid balancing level: STOP");
+
+        PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
+
+        if (level == BalancingLevel::optimistic) {
+            bin_packing::prepack_heavy_vertices(hypergraph, context, rb_range_k, true);
+        } else if (level == BalancingLevel::guaranteed) {
+            HypernodeWeight max_bin_weight = floor(context.initial_partitioning.current_max_bin * (1.0 + context.initial_partitioning.bin_epsilon));
+            for (size_t i = 0; i < static_cast<size_t>(context.initial_partitioning.k); ++i) {
+            HypernodeWeight lower = context.initial_partitioning.perfect_balance_partition_weight[i];
+            HypernodeWeight& border = context.initial_partitioning.upper_allowed_partition_weight[i];
+            HypernodeWeight upper = context.initial_partitioning.num_bins_per_partition[i] * max_bin_weight;
+
+            // TODO ugly magic numbers
+            if (upper - border < (border - lower) / 10) {
+                border = (lower + upper) / 2;
+                context.partition.epsilon = static_cast<double>(border) / static_cast<double>(lower) - 1.0;
+            }
+            }
+
+            if (context.initial_partitioning.bp_algo ==  BinPackingAlgorithm::worst_fit) {
+                apply_prepacking_pessimistic<bin_packing::WorstFit>(hypergraph, context);
+            } else {
+                apply_prepacking_pessimistic<bin_packing::FirstFit>(hypergraph, context);
+            }
         }
     }
 

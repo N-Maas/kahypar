@@ -33,47 +33,16 @@
 
 namespace kahypar {
 namespace multilevel {
+using bin_packing::BalancingLevel;
+
 static constexpr bool debug = false;
 
 static inline void partition(Hypergraph& hypergraph,
                              ICoarsener& coarsener,
                              IRefiner& refiner,
-                             const Context& context) {
-  // TODO is this correct?!
-  ASSERT(!hypergraph.containsFixedVertices(), "Fixed vertices not allowed here.");
+                             const Context& context,
+                             const std::vector<HypernodeWeight>& adjusted_weight = std::vector<HypernodeWeight>()) {
   io::printCoarseningBanner(context);
-
-  std::vector<HypernodeWeight> adjusted_weight;
-  PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
-  // TODO this is fragile, as it depends on rb_range_k == 1 before top-level coarsening
-    // perform prepacking of heavy vertices
-  if ((context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking_pessimistic
-      || context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking_optimistic) && (rb_range_k > 2)) {
-    Context packing_context = initial::createContext(hypergraph, context);
-    bool optimistic = context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking_optimistic;
-    bin_packing::prepack_heavy_vertices(hypergraph, packing_context, rb_range_k, optimistic);
-  } else if (context.initial_partitioning.balancing == WeightBalancingStrategy::prepacking_dynamic && (rb_range_k > 2)) {
-    Context packing_context = initial::createContext(hypergraph, context);
-    HypernodeWeight max_bin_weight = floor(packing_context.initial_partitioning.current_max_bin * (1.0 + packing_context.initial_partitioning.bin_epsilon));
-    for (size_t i = 0; i < packing_context.initial_partitioning.k; ++i) {
-      HypernodeWeight lower = packing_context.initial_partitioning.perfect_balance_partition_weight[i];
-      HypernodeWeight& border = packing_context.initial_partitioning.upper_allowed_partition_weight[i];
-      HypernodeWeight upper = packing_context.initial_partitioning.num_bins_per_partition[i] * max_bin_weight;
-
-      // TODO ugly magic numbers
-      if (upper - border < (border - lower) / 10) {
-        border = (lower + upper) / 2;
-        packing_context.partition.epsilon = static_cast<double>(border) / static_cast<double>(lower) - 1.0;
-      }
-    }
-
-    if (context.initial_partitioning.bp_algo ==  BinPackingAlgorithm::worst_fit) {
-      bin_packing::apply_prepacking_pessimistic<bin_packing::WorstFit>(hypergraph, packing_context);
-    } else {
-      bin_packing::apply_prepacking_pessimistic<bin_packing::FirstFit>(hypergraph, packing_context);
-    }
-    adjusted_weight = packing_context.initial_partitioning.upper_allowed_partition_weight;
-  }
 
   HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
   coarsener.coarsen(context.coarsening.contraction_limit);
@@ -163,6 +132,48 @@ static inline void partition(Hypergraph& hypergraph,
   }
 
   io::printLocalSearchResults(context, hypergraph);
+}
+
+static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
+                                                 ICoarsener& coarsener,
+                                                 IRefiner& refiner,
+                                                 const Context& context,
+                                                 Context::PartitioningStats& stats,
+                                                 const BalancingLevel level,
+                                                 const HypernodeWeight maxFeasibleBin,
+                                                 bool repeat) {
+  PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
+  repeat = repeat && context.initial_partitioning.current_max_bin <= maxFeasibleBin;
+  ASSERT(rb_range_k > 2, "Prepacking is not allowed for k <= 2: " << V(context.partition.rb_upper_k) << " - " << context.partition.rb_lower_k);
+
+  Context packing_context = initial::createContext(hypergraph, context);
+  BalancingLevel currLevel = level;
+
+  do {
+    if (currLevel != level) {
+      hypergraph.reset();
+
+      // TODO this is broken
+      std::string key("restarts_early_level_");
+      key += std::to_string(static_cast<uint8_t>(currLevel));
+      stats.add(StatTag::InitialPartitioning, key, 1.0);
+    }
+
+    if (context.initial_partitioning.use_increased_epsilon && bin_packing::usesIncreasedEpsilon(level)) {
+      packing_context.partition.epsilon = (1.0 + context.initial_partitioning.bin_epsilon) * context.initial_partitioning.current_max_bin
+                                          / ceil(static_cast<double>(hypergraph.totalWeight()) / rb_range_k) - 1;
+    } else {
+      packing_context.partition.epsilon = context.partition.epsilon;
+    }
+    packing_context.setupInitialPartitioningPartWeights();
+
+    // perform prepacking of heavy vertices
+    bin_packing::applyPrepacking(hypergraph, packing_context, currLevel);
+
+    partition(hypergraph, coarsener, refiner, context, packing_context.initial_partitioning.upper_allowed_partition_weight);
+    currLevel = bin_packing::increaseBalancingRestrictions(currLevel);
+  } while (metrics::resultingMaxBin(hypergraph, packing_context) > maxFeasibleBin
+           && currLevel != BalancingLevel::STOP && repeat);
 }
 }  // namespace multilevel
 }  // namespace kahypar
