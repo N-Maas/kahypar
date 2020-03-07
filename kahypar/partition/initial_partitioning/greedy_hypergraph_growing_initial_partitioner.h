@@ -117,7 +117,7 @@ class GreedyHypergraphGrowingInitialPartitioner : public IInitialPartitioner,
     if (_context.initial_partitioning.unassigned_part != -1) {
       _pq.disablePart(_context.initial_partitioning.unassigned_part);
       minimum_unassigned_part_weight =
-        _context.initial_partitioning.perfect_balance_partition_weight[unassigned_part];
+        _context.initial_partitioning.perfect_balance_partition_weight[_context.initial_partitioning.unassigned_part];
     }
 
     bool is_upper_bound_released = false;
@@ -207,11 +207,12 @@ class GreedyHypergraphGrowingInitialPartitioner : public IInitialPartitioner,
       }
 
       ASSERT([&]() {
-          bool exist_unassigned_node = Base::getUnassignedNode() != kInvalidNode;
+          HypernodeID unassigned_node = Base::getUnassignedNode();
           for (PartitionID part = 0; part < _context.initial_partitioning.k; ++part) {
             if (!_pq.isEnabled(part) && part != _context.initial_partitioning.unassigned_part) {
-              if ((exist_unassigned_node && _pq.size(part) > 0) &&
-                  _hg.partWeight(part) + Base::getMaxHypernodeWeight()
+              if ((unassigned_node != kInvalidNode && _pq.size(part) > 0)
+                  && (_hg.partID(unassigned_node) == -1 || _hg.partSize(_hg.partID(unassigned_node)) > 1)
+                  && _hg.partWeight(part) + Base::getMaxHypernodeWeight()
                   <= _context.initial_partitioning.upper_allowed_partition_weight[part]) {
                 LOG << V(part) << V(_hg.partWeight(part)) << V(_pq.isEnabled(part)) << V(_pq.size(part))
                     << V(_context.initial_partitioning.upper_allowed_partition_weight[part]);
