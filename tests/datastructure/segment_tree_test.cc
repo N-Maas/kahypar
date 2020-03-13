@@ -46,6 +46,17 @@ class ASequence : public Test {
             }
         }
 
+        template<typename T>
+        void update(T& tree) {
+            Randomize& random = Randomize::instance();
+            size_t num_updates = random.getRandomInt(0, sequence.size());
+
+            for (size_t i = 0; i < num_updates; ++i) {
+                size_t index = random.getRandomInt(0, sequence.size() - 1);
+                tree.update(index, random.getRandomInt(0, 100));
+            }
+        }
+
     std::vector<int> sequence;
 };
 
@@ -222,25 +233,35 @@ void check_query_result(size_t N, SegTree seg_tree, std::vector<seq_type>& seq) 
 TEST_F(ASequence, RangeMinimumQuery) {
     RMQ_Minimum<int> tree(sequence);
     check_query_result<int, size_t, RMQ_Minimum<int>, naive_min<int>>(sequence.size(), tree, sequence);
+    update(tree);
+    check_query_result<int, size_t, RMQ_Minimum<int>, naive_min<int>>(sequence.size(), tree, sequence);
 }
 
 TEST_F(ASequence, RangeMaximumQuery) {
     RMQ_Maximum<int> tree(sequence);
+    check_query_result<int, size_t, RMQ_Maximum<int>, naive_max<int>>(sequence.size(), tree, sequence);
+    update(tree);
     check_query_result<int, size_t, RMQ_Maximum<int>, naive_max<int>>(sequence.size(), tree, sequence);
 }
 
 TEST_F(ASequence, RangeMinmaxQuery) {
     Minmax_Tree<int> tree(sequence);
     check_query_result<int, std::pair<size_t, size_t>, Minmax_Tree<int>, naive_minmax<int>>(sequence.size(), tree, sequence);
+    update(tree);
+    check_query_result<int, std::pair<size_t, size_t>, Minmax_Tree<int>, naive_minmax<int>>(sequence.size(), tree, sequence);
 }
 
 TEST_F(ASequence, IntervalSum) {
     Interval_Sum<int> tree(sequence);
     check_query_result<int, int, Interval_Sum<int>, naive_sum<int>>(sequence.size(), tree, sequence);
+    update(tree);
+    check_query_result<int, int, Interval_Sum<int>, naive_sum<int>>(sequence.size(), tree, sequence);
 }
 
 TEST_F(ASequence, IntervalProduct) {
     Interval_Product<int> tree(sequence);
+    check_query_result<int, int, Interval_Product<int>, naive_product<int>>(sequence.size(), tree, sequence);
+    update(tree);
     check_query_result<int, int, Interval_Product<int>, naive_product<int>>(sequence.size(), tree, sequence);
 }
 
