@@ -40,6 +40,8 @@
 
 #include <kahypar/macros.h>
 
+namespace kahypar {
+namespace ds {
 template<typename S, typename T, typename... Rs>
 struct segtree {
     template<T (*A)(const T &, const T &, const std::vector<S> &, const Rs &...),
@@ -137,3 +139,5 @@ template<typename S, typename T, typename R,
          T (*A)(const T &, const T &, const std::vector<S> &, const R &),
          T (*B)(const size_t &, const std::vector<S> &, const R &)>
 using ParametrizedSegmentTree = typename segtree<S, T, R>::template GenericSegmentTree<A, B>;
+}  // namespace ds
+}  // namespace kahypar
