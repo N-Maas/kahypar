@@ -742,6 +742,17 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   ASSERT_EQ(hypergraph.isFixedVertex(4), false);
   ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[0], 12);
   ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[1], 12);
+
+  // invalid packing - test for resulting upper part weight
+  initializeWeights({8, 8, 8, 7, 7});
+  createTestContext(c, {19, 19}, {19, 19}, {2, 2}, 2, 4, 10);
+
+  bin_packing::apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[0], 20);
+  ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[1], 20);
 }
 
 TEST_F(BinPackingTest, TwoLevelPackingFuzzingTest) {

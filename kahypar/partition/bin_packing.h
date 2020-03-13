@@ -688,7 +688,8 @@ namespace bin_packing {
 
         // apply allowed weight optimization
         for (size_t i = 0; i < upper_weight.size(); ++i) {
-            HypernodeWeight optimized = num_bins_per_part[i] * (packing_result.second[max_part_idx] + range_weight) / num_bins;
+            HypernodeWeight optimized = num_bins_per_part[i] * (std::min(packing_result.second[max_part_idx],
+                                        num_bins_per_part[i] * max_bin_weight) + range_weight) / num_bins;
             upper_weight[i] = std::max(upper_weight[i], optimized);
         }
     }
