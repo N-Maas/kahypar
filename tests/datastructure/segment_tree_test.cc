@@ -1,6 +1,7 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
+ * Copyright (C) 2018 Tobias Heuer <tobias.heuer@live.com>
  * Copyright (C) 2020 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
@@ -211,6 +212,34 @@ using Interval_Product = SegmentTree<S, S, product_func<S>, product_base<S>>;
 //##########################################
 
 
+
+//############## Parametrized Interval Sum ##############
+template<typename S>
+S param_sum_func(const S& i1, const S& i2, const std::vector<S>& seq, const S& factor) {
+    return i1+i2;
+}
+
+template<typename S>
+S param_sum_base(const size_t& i, const std::vector<S>& seq, const S& factor) {
+    return factor * seq[i];
+}
+
+// Naive Range Maximum Query
+template<typename S, S factor>
+S naive_param_sum(const size_t& i, const size_t& j, std::vector<S>& seq) {
+    int sum = 0;
+    for (size_t t = i; t <= j; ++t) {
+        sum += seq[t];
+    }
+    return factor * sum;
+}
+
+template<typename S>
+using Param_Interval_Sum = ParametrizedSegmentTree<S, S, S, param_sum_func<S>, param_sum_base<S>>;
+
+//##########################################
+
+
 // Checks Segment Query Results against naive implementation
 template<typename seq_type, typename tree_type, typename SegTree, 
          tree_type (*naive)(const size_t &, const size_t &, std::vector<seq_type>& seq)> 
@@ -263,6 +292,13 @@ TEST_F(ASequence, IntervalProduct) {
     check_query_result<int, int, Interval_Product<int>, naive_product<int>>(sequence.size(), tree, sequence);
     update(tree);
     check_query_result<int, int, Interval_Product<int>, naive_product<int>>(sequence.size(), tree, sequence);
+}
+
+TEST_F(ASequence, Parametrized) {
+    Param_Interval_Sum<int> tree(sequence, 7);
+    check_query_result<int, int, Param_Interval_Sum<int>, naive_param_sum<int, 7>>(sequence.size(), tree, sequence);
+    update(tree);
+    check_query_result<int, int, Param_Interval_Sum<int>, naive_param_sum<int, 7>>(sequence.size(), tree, sequence);
 }
 
 }
