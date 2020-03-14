@@ -98,7 +98,7 @@ struct segtree {
             if (i > idx || j < idx) {
                 return (i == j) ? B(i, seq, std::get<Rs>(params)...) : seg_tree[pos];
             } else if (i == j) {
-                seq[idx] = val;
+                seq.get()[idx] = val;
                 return B(i, seq, std::get<Rs>(params)...);
             }
 
@@ -124,7 +124,7 @@ struct segtree {
         }
 
         size_t N;
-        std::vector<S>& seq;
+        std::reference_wrapper<std::vector<S>> seq;
         std::vector<T> seg_tree;
         std::tuple<Rs...> params;
     };
