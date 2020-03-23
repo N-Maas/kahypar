@@ -677,16 +677,16 @@ namespace bin_packing {
                        }) - 1;
 
             // calculate the heuristic of the subrange
-            const HeuristicSegTree<HypernodeWeight>& seg_tree = std::find_if(seg_tree_from_num_bins.cbegin(),
-                                                                seg_tree_from_num_bins.cend(), [&](const auto& el) {
-                                                                    return el.first == num_bins;
-                                                                })->second;
-            HypernodeWeight result = (i == j) ? 0 : seg_tree.query(i, j - 1) + remaining;
-            HypernodeWeight proxy_el = weights[j].second - remaining;
-            HypernodeWeight imbalance = std::max(result, (num_bins - 1) * proxy_el);
-
-            if (imbalance <= num_bins * max_bin_weight - upper_weight[max_part_idx]) {
-                break;
+            if (j > i) {
+                const HeuristicSegTree<HypernodeWeight>& seg_tree = std::find_if(seg_tree_from_num_bins.cbegin(),
+                                                                    seg_tree_from_num_bins.cend(), [&](const auto& el) {
+                                                                        return el.first == num_bins;
+                                                                    })->second;
+                HypernodeWeight imbalance = seg_tree.query(i, j - 1) + weights[j].second;
+                HypernodeWeight partWeight = (j == nodes.size()) ? packing_result.second[max_part_idx] + weights[i].second : upper_weight[max_part_idx];
+                if (partWeight + imbalance <= num_bins * max_bin_weight) {
+                    break;
+                }
             }
 
             // insert element
@@ -704,24 +704,23 @@ namespace bin_packing {
         // calculate optimization for allowed weights
         size_t max_part_idx = get_max_part_idx(context, packing_result.second, 0, false);
         PartitionID num_bins = num_bins_per_part[max_part_idx];
-        HypernodeWeight range_weight = 0;
+        HypernodeWeight range_weight = packing_result.second[max_part_idx];
         HypernodeWeight imbalance = 0;
+        HypernodeWeight optimized = 0;
         for (size_t j = i; j < nodes.size(); ++j) {
             HypernodeWeight weight = weights[j].first;
-            HypernodeWeight allowed_sub_imbalance = num_bins * max_bin_weight - packing_result.second[max_part_idx] - range_weight - weight;
             imbalance = std::max(imbalance - weight, (num_bins - 1) * weight);
+            range_weight += weight;
 
-            if (imbalance > allowed_sub_imbalance) {
+            if (range_weight + imbalance > num_bins * max_bin_weight) {
                 break;
             }
-            range_weight += weight;
+            optimized = num_bins * max_bin_weight - imbalance;
         }
 
         // apply allowed weight optimization
         for (size_t i = 0; i < upper_weight.size(); ++i) {
-            HypernodeWeight optimized = num_bins_per_part[i] * (std::min(packing_result.second[max_part_idx],
-                                        num_bins_per_part[i] * max_bin_weight) + range_weight) / num_bins;
-            upper_weight[i] = std::max(upper_weight[i], optimized);
+            upper_weight[i] = std::max(upper_weight[i], num_bins_per_part[i] * optimized / num_bins);
         }
     }
 

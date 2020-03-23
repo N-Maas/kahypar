@@ -680,40 +680,17 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
   ASSERT_EQ(hypergraph.isFixedVertex(0), true);
   ASSERT_EQ(hypergraph.isFixedVertex(1), true);
-  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), false);
   ASSERT_EQ(hypergraph.isFixedVertex(3), false);
 
-  initializeWeights({50, 50, 1});
+  initializeWeights({50, 50, 26, 1});
   createTestContext(c, {140, 140}, {51, 51}, {2, 2}, 2, 4, 75);
 
   apply_prepacking_pessimistic<FirstFit>(hypergraph, c);
   ASSERT_EQ(hypergraph.isFixedVertex(0), true);
   ASSERT_EQ(hypergraph.isFixedVertex(1), true);
-  ASSERT_EQ(hypergraph.isFixedVertex(2), false);
-
-  // tests for less-pessimistic calculation
-  initializeWeights({8, 8, 8, 8, 4, 4, 3});
-  createTestContext(c, {26, 26}, {22, 22}, {2, 2}, 2, 4, 14);
-
-  apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
-  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
-  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
   ASSERT_EQ(hypergraph.isFixedVertex(2), true);
-  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
-  ASSERT_EQ(hypergraph.isFixedVertex(4), false);
-  ASSERT_EQ(hypergraph.isFixedVertex(5), false);
-
-  initializeWeights({8, 8, 8, 8, 4, 4, 3});
-  createTestContext(c, {26, 26}, {22, 22}, {2, 2}, 2, 4, 14);
-
-  apply_prepacking_pessimistic<FirstFit>(hypergraph, c);
-  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
-  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
-  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
-  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
-  ASSERT_EQ(hypergraph.isFixedVertex(4), false);
-  ASSERT_EQ(hypergraph.isFixedVertex(5), false);
-
+  ASSERT_EQ(hypergraph.isFixedVertex(3), false);
 
   // tests handling of full partition edge case
   initializeWeights({4, 4, 4, 3, 3, 3, 3, 3, 3});
@@ -748,8 +725,94 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   ASSERT_EQ(hypergraph.isFixedVertex(0), true);
   ASSERT_EQ(hypergraph.isFixedVertex(1), true);
   ASSERT_EQ(hypergraph.isFixedVertex(2), true);
-  ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[0], 20);
-  ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[1], 20);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), true);
+  ASSERT_LE(c.initial_partitioning.upper_allowed_partition_weight[0], 20);
+  ASSERT_LE(c.initial_partitioning.upper_allowed_partition_weight[1], 20);
+
+  // impossible packing test
+  initializeWeights({2, 2, 2, 2, 2});
+  createTestContext(c, {5, 5}, {5, 5}, {2, 2}, 2, 4, 3);
+
+  apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), true);
+
+  // optimization and last element
+  initializeWeights({8, 8, 8, 8, 4, 4, 3});
+  createTestContext(c, {26, 26}, {22, 22}, {2, 2}, 2, 4, 14);
+
+  apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(5), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(6), false);
+
+  initializeWeights({8, 8, 8, 8, 4, 4, 3});
+  createTestContext(c, {26, 26}, {22, 22}, {2, 2}, 2, 4, 14);
+
+  apply_prepacking_pessimistic<FirstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(5), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(6), false);
+
+  // invalid optimization - test for regression
+  initializeWeights({4, 4, 4, 4});
+  createTestContext(c, {10, 10}, {8, 8}, {2, 2}, 2, 4, 6);
+
+  apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+
+  initializeWeights({4, 4, 4, 4});
+  createTestContext(c, {10, 10}, {8, 8}, {2, 2}, 2, 4, 6);
+
+  apply_prepacking_pessimistic<FirstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+
+  initializeWeights({6, 4, 4, 4, 2, 2});
+  createTestContext(c, {12, 12}, {11, 11}, {2, 2}, 2, 4, 7);
+
+  apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(4), false);
+  ASSERT_EQ(hypergraph.isFixedVertex(5), false);
+
+  // small final optimization
+  initializeWeights({8, 8, 3, 2, 2});
+  createTestContext(c, {12, 12}, {12, 12}, {2, 2}, 2, 4, 8);
+
+  apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), false);
+  ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[0], 14);
+  ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[1], 14);
+
+  initializeWeights({10, 10, 3, 2, 1});
+  createTestContext(c, {16, 16}, {13, 13}, {2, 2}, 2, 4, 10);
+
+  apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), false);
+  ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[0], 19);
+  ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[1], 19);
 }
 
 TEST_F(BinPackingTest, TwoLevelPackingFuzzingTest) {
