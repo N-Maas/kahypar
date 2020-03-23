@@ -815,6 +815,29 @@ TEST_F(BinPackingTest, PrepackingPessimisticExtended) {
   ASSERT_EQ(c.initial_partitioning.upper_allowed_partition_weight[1], 19);
 }
 
+TEST_F(BinPackingTest, PrepackingPessimisticUnequal) {
+  Context c;
+
+  // bigger partition edge case
+  initializeWeights({5, 5, 5, 5, 4, 3, 2, 1});
+  createTestContext(c, {30, 15}, {20, 10}, {4, 2}, 2, 6, 9);
+
+  apply_prepacking_pessimistic<WorstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(3), false);
+
+  // smaller partition edge case
+  initializeWeights({6, 4, 4, 4, 4, 4});
+  createTestContext(c, {10, 20}, {10, 20}, {2, 4}, 2, 6, 7);
+
+  apply_prepacking_pessimistic<FirstFit>(hypergraph, c);
+  ASSERT_EQ(hypergraph.isFixedVertex(0), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(1), true);
+  ASSERT_EQ(hypergraph.isFixedVertex(2), false);
+}
+
 TEST_F(BinPackingTest, TwoLevelPackingFuzzingTest) {
   // Constraints:
   // 1) Nodes must be sorted by weight
