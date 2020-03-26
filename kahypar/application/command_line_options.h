@@ -418,15 +418,15 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     "(default: worst_fit)")
     ("i-use-increased-epsilon",
     po::value<bool>(&context.initial_partitioning.use_increased_epsilon)->value_name("<bool>"),
-    "# Use epsilon increased by bin imbalance in context of vertex weights"
+    "Use epsilon increased by bin imbalance in context of vertex weights"
     "(default: false)")
     ("i-infeasible-early-restart",
     po::value<bool>(&context.initial_partitioning.infeasible_early_restart)->value_name("<bool>"),
-    "# Enable early restart of current bisection if infeasible"
+    "Enable early restart of current bisection if infeasible"
     "(default: false)")
     ("i-infeasible-late-restart",
     po::value<bool>(&context.initial_partitioning.infeasible_late_restart)->value_name("<bool>"),
-    "# Enable late restart of bisections, i.e. if the resulting partition is imbalanced"
+    "Enable late restart of bisections, i.e. if the resulting partition is imbalanced"
     "(default: false)")
     ("i-runs",
     po::value<uint32_t>(&context.initial_partitioning.nruns)->value_name("<uint32_t>"),
