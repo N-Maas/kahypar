@@ -53,7 +53,7 @@ class RBState {
           const PartitionID uk) :
     hypergraph(std::move(h)),
     state(s),
-    level(BalancingLevel::none),
+    level(BalancingLevel::guaranteed),
     isFeasible(true),
     lower_k(lk),
     upper_k(uk) { }
