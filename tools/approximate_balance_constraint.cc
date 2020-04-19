@@ -145,29 +145,6 @@ void eval_file(std::string hgr_filename, HypernodeID num_blocks) {
   std::cout << "> " << hgr_filename << " <" << std::endl;
 
   Hypergraph hypergraph(io::createHypergraphFromFile(hgr_filename, num_blocks));
-  auto simple_rating = [](HypernodeWeight node_weight,
-                          HypernodeWeight lower_sum,
-                          HypernodeWeight total_weight, HypernodeID k) {
-    HypernodeWeight max = node_weight - 2 * lower_sum / HypernodeWeight(k);
-    return (max + 1) / 2;
-  };
-  // LongHypernodeWeight required to avoid overflow
-  auto refined_rating = [](LongHypernodeWeight node_weight,
-                           LongHypernodeWeight lower_sum,
-                           LongHypernodeWeight total_weight, HypernodeID k) {
-    // TODO rounding?
-    HypernodeWeight max = HypernodeWeight(
-        node_weight -
-        (2 * total_weight / LongHypernodeWeight(k) - node_weight) * lower_sum /
-            (total_weight - node_weight));
-    return (max + 1) / 2;
-  };
-  // LongHypernodeWeight required to avoid overflow
-  auto pessimistic_rating = [](HypernodeWeight node_weight,
-                          HypernodeWeight lower_sum,
-                          HypernodeWeight total_weight, HypernodeID k) {
-    return node_weight - (node_weight + lower_sum) / HypernodeWeight(k);
-  };
 
   std::map<HypernodeWeight, size_t, std::greater<HypernodeID>>
       weight_distribution;
@@ -194,25 +171,21 @@ void eval_file(std::string hgr_filename, HypernodeID num_blocks) {
 
   HypernodeWeight calculated_border =
       calculate_worst_fit_decreasing_bin_size(weight_distribution, num_blocks);
-  HypernodeWeight recursive_border =
-      calculate_recursive_wfd_bin_size(weight_distribution, num_blocks);
-  HypernodeWeight simple_heuristic = calculate_dominating_element_heuristic(
-      simple_rating, weight_distribution, total_weight, num_blocks);
-  HypernodeWeight refined_heuristic = calculate_dominating_element_heuristic(
-      refined_rating, weight_distribution, total_weight, num_blocks);
-  HypernodeWeight pessimistic_heuristic = calculate_dominating_element_heuristic(
-      pessimistic_rating, weight_distribution, total_weight, num_blocks);
 
   std::cout << "calculated border for block weight: " << calculated_border
             << std::endl;
-  std::cout << "recursive border for block weight:  " << recursive_border
-            << std::endl;
-  std::cout << "simple heuristic:                   " << simple_heuristic
-            << std::endl;
-  std::cout << "refined heuristic:                  " << refined_heuristic
-            << std::endl;
-  std::cout << "pessimistic heuristic:              " << pessimistic_heuristic
-            << std::endl;
+  double e_calculated = static_cast<double>(calculated_border - weight_per_block) / static_cast<double>(weight_per_block);
+  HypernodeWeight border_gamma_1 = std::max(weight_per_block, max_weight);
+  double e_gamma_1 = static_cast<double>(border_gamma_1 - weight_per_block) / static_cast<double>(weight_per_block);
+  HypernodeWeight border_gamma_2 = weight_per_block + max_weight;
+  double e_gamma_2 = static_cast<double>(border_gamma_2 - weight_per_block) / static_cast<double>(weight_per_block);
+
+  std::cout << "RESULT" << " graph=" << hgr_filename.substr(hgr_filename.find_last_of("/\\") + 1) << " k=" << num_blocks
+            << " num_nodes=" << hypergraph.currentNumNodes() << " max=" << max_weight << " total=" << total_weight
+            << " avg=" << weight_per_block << " border_calc=" << calculated_border << " e_calc=" << e_calculated
+            << " border_gamma_1=" << border_gamma_1 << " e_gamma_1=" << e_gamma_1 << " border_gamma_2=" << border_gamma_2
+            << " e_gamma_2=" << e_gamma_2 << std::endl;
+
   std::cout << std::endl;
 }
 
