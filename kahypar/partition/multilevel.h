@@ -146,6 +146,7 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
   ASSERT(rb_range_k > 2, "Prepacking is not allowed for k <= 2: " << V(context.partition.rb_upper_k) << " - " << context.partition.rb_lower_k);
 
   Context packing_context = initial::createContext(hypergraph, context);
+  packing_context.setupInitialPartitioningPartWeights();
   BalancingLevel currLevel = level;
 
   do {
@@ -156,14 +157,6 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
       key += std::to_string(static_cast<uint8_t>(currLevel));
       stats.add(StatTag::InitialPartitioning, key, 1.0);
     }
-
-    if (context.initial_partitioning.use_increased_epsilon && bin_packing::usesIncreasedEpsilon(currLevel)) {
-      packing_context.partition.epsilon = (1.0 + context.initial_partitioning.bin_epsilon) * context.initial_partitioning.current_max_bin
-                                          / ceil(static_cast<double>(hypergraph.totalWeight()) / rb_range_k) - 1;
-    } else {
-      packing_context.partition.epsilon = context.partition.epsilon;
-    }
-    packing_context.setupInitialPartitioningPartWeights();
 
     // perform prepacking of heavy vertices
     bin_packing::applyPrepacking(hypergraph, packing_context, currLevel);

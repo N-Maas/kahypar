@@ -178,23 +178,6 @@ enum class FlowExecutionMode : uint8_t {
   UNDEFINED
 };
 
-enum class WeightBalancingStrategy : uint8_t {
-  none,
-  prepacking_pessimistic,
-  prepacking_optimistic,
-  prepacking_dynamic,
-  UNDEFINED
-};
-
-enum class EpsilonType : uint8_t {
-  flat,
-  bin_restricted,
-  bin_relaxed,
-  fully_relaxed,
-  combined,
-  UNDEFINED
-};
-
 enum class BinPackingAlgorithm : uint8_t {
   worst_fit,
   first_fit,
@@ -444,31 +427,6 @@ static std::ostream& operator<< (std::ostream& os, const FlowExecutionMode& mode
       // omit default case to trigger compiler warning for missing cases
   }
   return os << static_cast<uint8_t>(mode);
-}
-
-std::ostream& operator<< (std::ostream& os, const WeightBalancingStrategy& balancing_strategy) {
-  switch (balancing_strategy) {
-    case WeightBalancingStrategy::none: return os << "none";
-    case WeightBalancingStrategy::prepacking_pessimistic: return os << "prepacking_pessimistic";
-    case WeightBalancingStrategy::prepacking_optimistic: return os << "prepacking_optimistic";
-    case WeightBalancingStrategy::prepacking_dynamic: return os << "prepacking_dynamic";
-    case WeightBalancingStrategy::UNDEFINED: return os << "UNDEFINED";
-      // omit default case to trigger compiler warning for missing cases
-  }
-  return os << static_cast<uint8_t>(balancing_strategy);
-}
-
-std::ostream& operator<< (std::ostream& os, const EpsilonType& e_type) {
-  switch (e_type) {
-    case EpsilonType::flat: return os << "flat";
-    case EpsilonType::bin_restricted: return os << "bin_restricted";
-    case EpsilonType::bin_relaxed: return os << "bin_relaxed";
-    case EpsilonType::fully_relaxed: return os << "fully_relaxed";
-    case EpsilonType::combined: return os << "combined";
-    case EpsilonType::UNDEFINED: return os << "UNDEFINED";
-      // omit default case to trigger compiler warning for missing cases
-  }
-  return os << static_cast<uint8_t>(e_type);
 }
 
 std::ostream& operator<< (std::ostream& os, const BinPackingAlgorithm& bp_algo) {
@@ -721,38 +679,6 @@ static FlowExecutionMode flowExecutionPolicyFromString(const std::string& mode) 
   LOG << "No valid flow execution mode.";
   exit(0);
   return FlowExecutionMode::exponential;
-}
-
-static WeightBalancingStrategy weightBalancingStrategyFromString(const std::string& type) {
-  if (type == "none") {
-    return WeightBalancingStrategy::none;
-  } else if (type == "prepacking_pessimistic") {
-    return WeightBalancingStrategy::prepacking_pessimistic;
-  } else if (type == "prepacking_optimistic") {
-    return WeightBalancingStrategy::prepacking_optimistic;
-  } else if (type == "prepacking_dynamic") {
-    return WeightBalancingStrategy::prepacking_dynamic;
-  }
-  LOG << "Illegal option:" << type;
-  exit(0);
-  return WeightBalancingStrategy::prepacking_pessimistic;
-}
-
-static EpsilonType epsilonTypeFromString(const std::string& type) {
-  if (type == "flat") {
-    return EpsilonType::flat;
-  } else if (type == "bin_restricted") {
-    return EpsilonType::bin_restricted;
-  } else if (type == "bin_relaxed") {
-    return EpsilonType::bin_relaxed;
-  } else if (type == "fully_relaxed") {
-    return EpsilonType::fully_relaxed;
-  } else if (type == "combined") {
-    return EpsilonType::combined;
-  }
-  LOG << "Illegal option:" << type;
-  exit(0);
-  return EpsilonType::flat;
 }
 
 static BinPackingAlgorithm binPackingAlgorithmFromString(const std::string& type) {

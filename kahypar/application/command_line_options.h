@@ -381,31 +381,6 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
         kahypar::initialPartitioningAlgorithmFromString(ip_algo);
     }),
     "Algorithm used to create initial partition: pool ")
-    ("i-balancing",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& ip_balancing) {
-      context.initial_partitioning.balancing =
-        kahypar::weightBalancingStrategyFromString(ip_balancing);
-    }),
-    "Balancing strategy for vertex weights:\n"
-    " - none\n"
-    " - prepacking_pessimistic\n"
-    " - prepacking_optimistic\n"
-    " - prepacking_dynamic"
-    "(default: none)")
-    ("i-epsilon-type",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& ip_e_type) {
-      context.initial_partitioning.e_type =
-        kahypar::epsilonTypeFromString(ip_e_type);
-    }),
-    "Calculation of epsilon value for bisections:\n"
-    " - flat\n"
-    " - bin_restricted\n"
-    " - bin_relaxed\n"
-    " - fully_relaxed\n"
-    " - combined"
-    "(default: flat)")
     ("i-bin-packing-algorithm",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& ip_bp_algo) {
@@ -416,10 +391,6 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     " - worst_fit\n"
     " - first_fit"
     "(default: worst_fit)")
-    ("i-use-increased-epsilon",
-    po::value<bool>(&context.initial_partitioning.use_increased_epsilon)->value_name("<bool>"),
-    "Use epsilon increased by bin imbalance in context of vertex weights"
-    "(default: false)")
     ("i-infeasible-early-restart",
     po::value<bool>(&context.initial_partitioning.infeasible_early_restart)->value_name("<bool>"),
     "Enable early restart of current bisection if infeasible"

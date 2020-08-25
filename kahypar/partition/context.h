@@ -257,10 +257,7 @@ struct InitialPartitioningParameters {
   Mode mode = Mode::UNDEFINED;
   InitialPartitioningTechnique technique = InitialPartitioningTechnique::UNDEFINED;
   InitialPartitionerAlgorithm algo = InitialPartitionerAlgorithm::UNDEFINED;
-  WeightBalancingStrategy balancing = WeightBalancingStrategy::UNDEFINED;
-  EpsilonType e_type = EpsilonType::UNDEFINED;
   BinPackingAlgorithm bp_algo = BinPackingAlgorithm::UNDEFINED;
-  bool use_increased_epsilon = false;
   bool infeasible_early_restart = false;
   bool infeasible_late_restart = false;
   CoarseningParameters coarsening = { };
@@ -295,8 +292,6 @@ inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningPar
   str << "  Mode:                               " << params.mode << std::endl;
   str << "  Technique:                          " << params.technique << std::endl;
   str << "  Algorithm:                          " << params.algo << std::endl;
-  str << "  Balancing:                          " << params.balancing << std::endl;
-  str << "  Epsilon type:                       " << params.e_type << std::endl;
   str << "  Bin Packing algorithm:              " << params.bp_algo << std::endl;
   if (params.technique == InitialPartitioningTechnique::multilevel) {
     str << "IP Coarsening:                        " << std::endl;
