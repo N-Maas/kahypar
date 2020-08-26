@@ -114,8 +114,8 @@ static inline Context createCurrentBisectionContext(const Context& original_cont
   current_context.initial_partitioning.num_bins_per_partition = {k0, k1};
 
   current_context.partition.epsilon = calculateRelaxedEpsilon(original_hypergraph.totalWeight(),
-                                                                current_hypergraph.totalWeight(),
-                                                                current_k, original_context);
+                                                              current_hypergraph.totalWeight(),
+                                                              current_k, original_context);
     // TODO this could be cached
     HypernodeWeight current_max_bin = bin_packing::maxBinWeight(current_hypergraph, current_k);
     double current_imb = imbalanceValue(original_hypergraph.totalWeight(), current_max_bin, original_context);
@@ -246,7 +246,7 @@ static inline void partition(Hypergraph& input_hypergraph,
       case RBHypergraphState::finished: {
           if (original_context.initial_partitioning.infeasible_late_restart && k > 2) {
             ASSERT(!original_context.partition.use_individual_part_weights,
-                   "Individual part weights are ot allowed for bin packing.");
+                   "Individual part weights are not allowed for bin packing.");
 
             bool balanced = true;
             for (PartitionID i = k1; i <= k2; ++i) {
@@ -350,7 +350,7 @@ static inline void partition(Hypergraph& input_hypergraph,
           if (current_hypergraph.initialNumNodes() > 0 && k > 2) {
             ASSERT(!(original_context.partition.use_individual_part_weights
                    && original_context.initial_partitioning.infeasible_early_restart),
-                   "Individual part weights are ot allowed for bin packing.");
+                   "Individual part weights are not allowed for bin packing.");
             bool feasible = current_context.initial_partitioning.current_max_bin <= lmax;
             hypergraph_stack.back().isFeasible = feasible;
             multilevel::partitionRepeatedOnInfeasible(current_hypergraph, *coarsener, *refiner, current_context,
