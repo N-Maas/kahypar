@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "kahypar/partition/bin_packing.h"
+#include "kahypar/partition/bin_packing/bin_packer.h"
 #include "kahypar/partition/initial_partitioning/i_initial_partitioner.h"
 #include "kahypar/partition/initial_partitioning/initial_partitioner_base.h"
 #include "kahypar/utils/randomize.h"

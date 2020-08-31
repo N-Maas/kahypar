@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 
-#include "kahypar/partition/bin_packing.h"
+#include "kahypar/partition/bin_packing/bin_packing.h"
 #include "kahypar/utils/randomize.h"
 
 using ::testing::Eq;
@@ -517,22 +517,6 @@ TEST_F(BinPackingTest, ExtractNodes) {
   ASSERT_EQ(result.at(5), 1);
 }
 
-TEST_F(BinPackingTest, TreshholdPessBase) {
-  initializeWeights({6, 5, 4, 3, 2, 1});
-  std::pair<size_t, HypernodeWeight> zero_pair(0, 0);
-
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {}, 1, 0), zero_pair);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {}, 3, 0), zero_pair);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {}, 4, 1), zero_pair);
-
-  std::pair<size_t, HypernodeWeight> two_zero(2, 0);
-  std::pair<size_t, HypernodeWeight> one_one(1, 1);
-  std::pair<size_t, HypernodeWeight> one_two(1, 2);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 5}, 4, 0), two_zero);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 5}, 4, 1), one_one);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 1, 2, 3, 4, 5}, 4, 2), one_two);
-}
-
 TEST_F(BinPackingTest, TreshholdOptBase) {
   initializeWeights({6, 5, 4, 3, 2, 1});
   std::pair<size_t, HypernodeWeight> zero_pair(0, 0);
@@ -547,17 +531,6 @@ TEST_F(BinPackingTest, TreshholdOptBase) {
   ASSERT_EQ(calculate_heavy_nodes_treshhold_optimistic(hypergraph, {0, 5}, 4, 0), two_zero);
   ASSERT_EQ(calculate_heavy_nodes_treshhold_optimistic(hypergraph, {0, 5}, 4, 1), one_one);
   ASSERT_EQ(calculate_heavy_nodes_treshhold_optimistic(hypergraph, {0, 1, 2, 3, 4, 5}, 4, 2), zero_two);
-}
-
-TEST_F(BinPackingTest, TreshholdPessComplex) {
-  initializeWeights({22, 18, 17, 8, 7, 3, 1, 1});
-
-  std::pair<size_t, HypernodeWeight> one_two(1, 2);
-  std::pair<size_t, HypernodeWeight> five_two(5, 2);
-  std::pair<size_t, HypernodeWeight> three_four(3, 4);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 5, 6, 7}, 4, 2), one_two);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7}, 4, 2), five_two);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7}, 4, 4), three_four);
 }
 
 TEST_F(BinPackingTest, TreshholdOptComplex) {
@@ -575,12 +548,9 @@ TEST_F(BinPackingTest, TreshholdDiff) {
   initializeWeights({8, 6, 5, 5, 5, 2, 2, 2, 2});
 
   std::pair<size_t, HypernodeWeight> zero_two(0, 2);
-  std::pair<size_t, HypernodeWeight> four_two(4, 2);
   std::pair<size_t, HypernodeWeight> zero_three(0, 3);
   ASSERT_EQ(calculate_heavy_nodes_treshhold_optimistic(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7, 8}, 4, 2), zero_two);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 1, 2, 3, 4, 5, 6, 7, 8}, 4, 2), four_two);
   ASSERT_EQ(calculate_heavy_nodes_treshhold_optimistic(hypergraph, {0, 1, 5, 6, 7, 8}, 4, 3), zero_three);
-  ASSERT_EQ(calculate_heavy_nodes_treshhold_pessimistic(hypergraph, {0, 1, 5, 6, 7, 8}, 4, 3), zero_three);
 }
 
 TEST_F(BinPackingTest, PrepackingPessimisticBase) {

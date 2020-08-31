@@ -25,7 +25,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "kahypar/partition/bin_packing.h"
+#include "kahypar/partition/bin_packing/bin_packing.h"
 #include "kahypar/partition/context.h"
 
 namespace kahypar {
