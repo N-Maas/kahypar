@@ -392,8 +392,7 @@ namespace bin_packing {
     }
   }
 
-  // TODO refactor with metrics::finalLevelBinImbalance
-  static inline HypernodeWeight maxBinWeight(const Hypergraph& hypergraph, const PartitionID& rb_range_k) {
+  static inline HypernodeWeight currentMaxBin(const Hypergraph& hypergraph, const PartitionID& rb_range_k) {
     BinaryMinHeap<PartitionID, HypernodeWeight> queue(rb_range_k);
     for (PartitionID j = 0; j < rb_range_k; ++j) {
         queue.push(j, 0);
@@ -411,5 +410,48 @@ namespace bin_packing {
     }
     return queue.getKey(queue.top());
   }
+
+// Assumes that the final partitions are of equal size (is this always true?).
+static inline HypernodeWeight resultingMaxBin(const Hypergraph& hypergraph, const Context& context) {
+  ASSERT(!context.partition.use_individual_part_weights);
+
+  PartitionID num_parts = context.initial_partitioning.k;
+
+  // initialize queues
+  std::vector<BinaryMinHeap<PartitionID, HypernodeWeight>> part_queues;
+  part_queues.reserve(num_parts);
+  for (PartitionID i = 0; i < num_parts; ++i) {
+    PartitionID current_k = context.initial_partitioning.num_bins_per_partition[i];
+    BinaryMinHeap<PartitionID, HypernodeWeight> queue(current_k);
+    for (PartitionID j = 0; j < current_k; ++j) {
+        queue.push(j, 0);
+    }
+    part_queues.push_back(std::move(queue));
+  }
+
+  // assign nodes
+  std::vector<HypernodeID> hypernodes = bin_packing::extractNodesWithDescendingWeight(hypergraph);
+
+  for (const HypernodeID& hn : hypernodes) {
+    PartitionID part_id = hypergraph.partID(hn);
+
+    ALWAYS_ASSERT(part_id >= 0 && part_id < num_parts,
+                  "Node not assigned or partition id " << part_id << " invalid: " << hn);
+
+    PartitionID bin = part_queues[part_id].top();
+    part_queues[part_id].increaseKeyBy(bin, hypergraph.nodeWeight(hn));
+  }
+
+  HypernodeWeight max = 0;
+  for(auto& queue : part_queues) {
+    // the maximum is the biggest bin, i.e. the last element in the queue
+    while (queue.size() > 1) {
+      queue.pop();
+    }
+    max = std::max(queue.getKey(queue.top()), max);
+  }
+
+  return max;
+}
 } // namespace bin_packing
 } // namespace kahypar
