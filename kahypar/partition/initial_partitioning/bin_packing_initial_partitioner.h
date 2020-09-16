@@ -26,6 +26,8 @@
 #include "kahypar/utils/randomize.h"
 
 namespace kahypar {
+using bin_packing::IBinPacker;
+
 class BinPackingInitialPartitioner : public IInitialPartitioner,
                                  private InitialPartitionerBase<BinPackingInitialPartitioner>{
   using Base = InitialPartitionerBase<BinPackingInitialPartitioner>;
@@ -34,7 +36,8 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
  public:
   BinPackingInitialPartitioner(Hypergraph& hypergraph, Context& context) :
     Base(hypergraph, context),
-    _descending_nodes() { }
+    _descending_nodes(),
+    _bin_packer(bin_packing::createBinPacker(context.initial_partitioning.bp_algo)) { }
 
   ~BinPackingInitialPartitioner() override = default;
 
@@ -48,7 +51,7 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
   void initializeNodes() {
     // exctract hypernodes in descending order
     if (_descending_nodes.empty()) {
-      _descending_nodes = bin_packing::extract_nodes_with_descending_weight(_hg);
+      _descending_nodes = bin_packing::extractNodesWithDescendingWeight(_hg);
     }
 
     // shuffle nodes with equal weight
@@ -63,9 +66,6 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
       }
     }
 
-    ASSERT(_descending_nodes.size() == _hg.currentNumNodes(),
-      "Number of extracted nodes does not match nodes in hypergraph.");
-
     ASSERT([&]() {
       for (const HypernodeID& hn : _hg.nodes()) {
         if (std::find(_descending_nodes.cbegin(), _descending_nodes.cend(), hn) == _descending_nodes.cend()) {
@@ -74,15 +74,6 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
       }
       return true;
     } (),"The extracted nodes do not match the nodes in the hypergraph.");
-
-    ASSERT([&]() {
-      for (size_t i = 1; i < _descending_nodes.size(); ++i) {
-        if (_hg.nodeWeight(_descending_nodes[i-1]) < _hg.nodeWeight(_descending_nodes[i])) {
-          return false;
-        }
-      }
-      return true;
-    } (), "The hypernodes must be sorted in descending order of weight.");
   }
 
   void partitionImpl() override final {
@@ -95,9 +86,7 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
     Base::resetPartitioning();
     initializeNodes();
 
-    std::vector<PartitionID> partitions = _context.initial_partitioning.bp_algo == BinPackingAlgorithm::worst_fit ?
-      bin_packing::apply_bin_packing_to_nodes<bin_packing::WorstFit>(_hg, _context, _descending_nodes) :
-      bin_packing::apply_bin_packing_to_nodes<bin_packing::FirstFit>(_hg, _context, _descending_nodes);
+    std::vector<PartitionID> partitions = _bin_packer->twoLevelPacking(_hg, _context, _descending_nodes);
 
     for (size_t i = 0; i < _descending_nodes.size(); ++i) {
       HypernodeID hn = _descending_nodes[i];
@@ -147,5 +136,6 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
   using Base::_context;
 
   std::vector<HypernodeID> _descending_nodes;
+  std::unique_ptr<IBinPacker> _bin_packer;
 };
 }  // namespace kahypar

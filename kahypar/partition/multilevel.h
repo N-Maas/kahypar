@@ -143,8 +143,8 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
                                                  const BalancingLevel level,
                                                  const HypernodeWeight maxFeasibleBin,
                                                  bool repeat) {
-  PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
-  ASSERT(rb_range_k > 2, "Prepacking is not allowed for k <= 2: " << V(context.partition.rb_upper_k) << " - " << context.partition.rb_lower_k);
+  ASSERT((context.partition.rb_upper_k - context.partition.rb_lower_k + 1) > 2,
+         "Prepacking is not allowed for k <= 2: " << V(context.partition.rb_upper_k) << " - " << context.partition.rb_lower_k);
 
   Context packing_context = initial::createContext(hypergraph, context);
   packing_context.setupInitialPartitioningPartWeights();

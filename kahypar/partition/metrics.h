@@ -306,7 +306,7 @@ static inline HypernodeWeight resultingMaxBin(const Hypergraph& hypergraph, cons
   }
 
   // assign nodes
-  std::vector<HypernodeID> hypernodes = bin_packing::extract_nodes_with_descending_weight(hypergraph);
+  std::vector<HypernodeID> hypernodes = bin_packing::extractNodesWithDescendingWeight(hypergraph);
 
   for (const HypernodeID& hn : hypernodes) {
     PartitionID part_id = hypergraph.partID(hn);
