@@ -1,7 +1,7 @@
 /*******************************************************************************
  * This file is part of KaHyPar.
  *
- * Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
+ * Copyright (C) 2020 Nikolai Maas <nikolai.maas@student.kit.edu>
  *
  * KaHyPar is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 #include "kahypar/definitions.h"
 #include "kahypar/partition/bin_packing/bin_packing.h"
+#include "kahypar/partition/bin_packing/algorithms.h"
 
 namespace kahypar {
 namespace bin_packing {
@@ -87,21 +88,21 @@ class BinPacker final : public IBinPacker {
     HypernodeWeight max_bin_weight = floor(context.initial_partitioning.current_max_bin * (1.0 + context.initial_partitioning.bin_epsilon));
 
     if (level == BalancingLevel::optimistic) {
-        bin_packing::calculateHeuristicPrepacking<BPAlgorithm>(hg, context, rb_range_k, max_bin_weight);
+      bin_packing::calculateHeuristicPrepacking<BPAlgorithm>(hg, context, rb_range_k, max_bin_weight);
     } else if (level == BalancingLevel::guaranteed) {
-        for (size_t i = 0; i < static_cast<size_t>(context.initial_partitioning.k); ++i) {
-            HypernodeWeight lower = context.initial_partitioning.perfect_balance_partition_weight[i];
-            HypernodeWeight& border = context.initial_partitioning.upper_allowed_partition_weight[i];
-            HypernodeWeight upper = context.initial_partitioning.num_bins_per_partition[i] * max_bin_weight;
+      for (size_t i = 0; i < static_cast<size_t>(context.initial_partitioning.k); ++i) {
+        HypernodeWeight lower = context.initial_partitioning.perfect_balance_partition_weight[i];
+        HypernodeWeight& border = context.initial_partitioning.upper_allowed_partition_weight[i];
+        HypernodeWeight upper = context.initial_partitioning.num_bins_per_partition[i] * max_bin_weight;
 
-            // TODO ugly magic numbers
-            if (upper - border < (border - lower) / 10) {
-                border = (lower + upper) / 2;
-                context.partition.epsilon = static_cast<double>(border) / static_cast<double>(lower) - 1.0;
-            }
+        // TODO ugly magic numbers
+        if (upper - border < (border - lower) / 10) {
+          border = (lower + upper) / 2;
+          context.partition.epsilon = static_cast<double>(border) / static_cast<double>(lower) - 1.0;
         }
+      }
 
-       bin_packing::calculateExactPrepacking<BPAlgorithm>(hg, context, rb_range_k, max_bin_weight);
+      bin_packing::calculateExactPrepacking<BPAlgorithm>(hg, context, rb_range_k, max_bin_weight);
     }
   }
 
@@ -114,16 +115,16 @@ class BinPacker final : public IBinPacker {
     TwoLevelPacker<BPAlgorithm> packer(rb_range_k, max_bin_weight);
 
     if (hg.containsFixedVertices()) {
-        bin_packing::preassignFixedVertices<BPAlgorithm>(hg, nodes, partitions, packer, context.partition.k, rb_range_k);
+      bin_packing::preassignFixedVertices<BPAlgorithm>(hg, nodes, partitions, packer, context.partition.k, rb_range_k);
     }
 
     for (size_t i = 0; i < nodes.size(); ++i) {
-        HypernodeID hn = nodes[i];
+      HypernodeID hn = nodes[i];
 
-        if(!hg.isFixedVertex(hn)) {
-            HypernodeWeight weight = hg.nodeWeight(hn);
-            partitions[i] = packer.insertElement(weight);
-        }
+      if(!hg.isFixedVertex(hn)) {
+        HypernodeWeight weight = hg.nodeWeight(hn);
+        partitions[i] = packer.insertElement(weight);
+      }
     }
 
     PartitionMapping packing_result = packer.applySecondLevel(context.initial_partitioning.upper_allowed_partition_weight,
@@ -132,14 +133,14 @@ class BinPacker final : public IBinPacker {
 
     ASSERT(nodes.size() == partitions.size());
     ASSERT([&]() {
-        for (size_t i = 0; i < nodes.size(); ++i) {
-            HypernodeID hn = nodes[i];
+      for (size_t i = 0; i < nodes.size(); ++i) {
+        HypernodeID hn = nodes[i];
 
-            if (hg.isFixedVertex(hn) && (hg.fixedVertexPartID(hn) != partitions[i])) {
-                return false;
-            }
+        if (hg.isFixedVertex(hn) && (hg.fixedVertexPartID(hn) != partitions[i])) {
+          return false;
         }
-        return true;
+      }
+      return true;
     } (), "Partition of fixed vertex changed.");
 
     return partitions;
