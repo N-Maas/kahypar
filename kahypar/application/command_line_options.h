@@ -78,8 +78,8 @@ po::options_description createGeneralOptionsDescription(Context& context, const 
     "Input Partition filename. The input partition is then refined using direct k-way V-cycles.")
     ("cmaxnet",
     po::value<HyperedgeID>(&context.partition.hyperedge_size_threshold)->value_name("<int>")->notifier(
-      [&](const HyperedgeID) {
-      if (context.partition.hyperedge_size_threshold == -1) {
+      [&](const int64_t& t) {
+      if (t == -1) {
         context.partition.hyperedge_size_threshold = std::numeric_limits<HyperedgeID>::max();
       }
     }),
