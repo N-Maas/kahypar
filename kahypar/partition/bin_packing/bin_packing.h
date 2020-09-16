@@ -95,7 +95,7 @@ namespace bin_packing {
       // ... and at the second level, the resulting k bins are packed into the final partitions.
       // Returns the partition mapping for the bins and a vector of the resulting partition weights
       std::pair<PartitionMapping, std::vector<HypernodeWeight>> applySecondLevel(const std::vector<HypernodeWeight>& max_allowed_partition_weights,
-                                      const std::vector<PartitionID>& num_bins_per_partition) const {
+                                                                                 const std::vector<PartitionID>& num_bins_per_partition) const {
         ASSERT(num_bins_per_partition.size() == max_allowed_partition_weights.size());
 
         PartitionID num_partitions = static_cast<PartitionID>(max_allowed_partition_weights.size());
@@ -172,7 +172,7 @@ namespace bin_packing {
   // Preassigns the fixed vertices to the packer with a first fit packing.
   template< class BPAlgorithm >
   static inline void preassignFixedVertices(const Hypergraph& hg, const std::vector<HypernodeID>& nodes, std::vector<PartitionID>& partitions,
-                        TwoLevelPacker<BPAlgorithm>& packer, PartitionID k, PartitionID rb_range_k) {
+                                            TwoLevelPacker<BPAlgorithm>& packer, PartitionID k, PartitionID rb_range_k) {
     HypernodeWeight avg_bin_weight = (hg.totalWeight() + rb_range_k - 1) / rb_range_k;
     PartitionID kbins_per_partition = (rb_range_k + k - 1) / k;
 
@@ -187,7 +187,7 @@ namespace bin_packing {
         PartitionID assigned_bin = start_index;
 
         if (kbins_per_partition > 1) {
-          for (PartitionID i = start_index; i < start_index + kbins_per_partition; ++i) {
+          for (PartitionID i = start_index; i < std::min(start_index + kbins_per_partition, rb_range_k); ++i) {
             HypernodeWeight current_bin_weight = packer.binWeight(i);
 
             // The node is assigned to the first fitting bin or, if none fits, the smallest bin.
@@ -223,7 +223,7 @@ namespace bin_packing {
   using BalanceSegTree = ds::ParametrizedSegmentTree<std::pair<S, S>, S, S, balance_max<S>, balance_base<S>>;
 
   static inline size_t getMaxPartIndex(const Context& context, const std::vector<HypernodeWeight>& part_weight,
-                      HypernodeWeight next_element, bool skip_full_parts, HypernodeWeight max_bin_weight) {
+                                       HypernodeWeight next_element, bool skip_full_parts, HypernodeWeight max_bin_weight) {
     const std::vector<HypernodeWeight>& upper_weight = context.initial_partitioning.upper_allowed_partition_weight;
     const std::vector<PartitionID>& num_bins_per_part = context.initial_partitioning.num_bins_per_partition;
     ASSERT(part_weight.size() == upper_weight.size() && part_weight.size() == num_bins_per_part.size());
@@ -383,7 +383,7 @@ namespace bin_packing {
     }
 
     PartitionMapping packing_result = packer.applySecondLevel(context.initial_partitioning.upper_allowed_partition_weight,
-                                  context.initial_partitioning.num_bins_per_partition).first;
+                                                              context.initial_partitioning.num_bins_per_partition).first;
     packing_result.applyMapping(partitions);
 
     for (size_t i = 0; i < nodes.size(); ++i) {
