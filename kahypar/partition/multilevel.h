@@ -136,8 +136,6 @@ static inline void partition(Hypergraph& hypergraph,
 }
 
 static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
-                                                 ICoarsener& coarsener,
-                                                 IRefiner& refiner,
                                                  const Context& context,
                                                  Context::PartitioningStats& stats,
                                                  const BalancingLevel level,
@@ -163,7 +161,13 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
     std::unique_ptr<IBinPacker> bin_packer = bin_packing::createBinPacker(context.initial_partitioning.bp_algo);
     bin_packer->prepacking(hypergraph, packing_context, currLevel);
 
-    partition(hypergraph, coarsener, refiner, context, packing_context.initial_partitioning.upper_allowed_partition_weight);
+    std::unique_ptr<ICoarsener> coarsener(
+      CoarsenerFactory::getInstance().createObject(context.coarsening.algorithm, hypergraph, context, hypergraph.weightOfHeaviestNode()));
+    std::unique_ptr<IRefiner> refiner(RefinerFactory::getInstance().createObject(context.local_search.algorithm, hypergraph, context));
+    ASSERT(coarsener.get() != nullptr, "coarsener not found");
+    ASSERT(refiner.get() != nullptr, "refiner not found");
+
+    partition(hypergraph, *coarsener, *refiner, context, packing_context.initial_partitioning.upper_allowed_partition_weight);
     currLevel = bin_packing::increaseBalancingRestrictions(currLevel);
   } while (repeat && currLevel != BalancingLevel::STOP
            && metrics::resultingMaxBin(hypergraph, packing_context) > maxFeasibleBin);
