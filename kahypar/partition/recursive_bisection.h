@@ -95,13 +95,6 @@ static inline double calculateEpsilonFromBinImbalance(const double current_bin_i
   return std::min(0.99, std::max(std::pow(base, 1.0 / ceil(log2(static_cast<double>(k)))) - 1.0,0.0));
 }
 
-// returns 1 + e, relative to maximum bin of bin packing result
-static inline double imbalanceValue(const HypernodeWeight original_hypergraph_weight,
-                                    const HypernodeWeight max_bin,
-                                    const Context& original_context) {
-  return static_cast<double>(max_bin) / ceil(static_cast<double>(original_hypergraph_weight) / original_context.partition.k);
-}
-
 static inline Context createCurrentBisectionContext(const Context& original_context,
                                                     const Hypergraph& original_hypergraph,
                                                     const Hypergraph& current_hypergraph,
@@ -112,15 +105,19 @@ static inline Context createCurrentBisectionContext(const Context& original_cont
   Context current_context(original_context);
   current_context.partition.k = 2;
   current_context.initial_partitioning.num_bins_per_partition = {k0, k1};
-
   current_context.partition.epsilon = calculateRelaxedEpsilon(original_hypergraph.totalWeight(),
                                                               current_hypergraph.totalWeight(),
                                                               current_k, original_context);
     // TODO this could be cached
-    HypernodeWeight current_max_bin = bin_packing::maxBinWeight(current_hypergraph, current_k);
-    double current_imb = imbalanceValue(original_hypergraph.totalWeight(), current_max_bin, original_context);
+  if (current_k > 2 && (original_context.initial_partitioning.infeasible_early_restart
+      || original_context.initial_partitioning.infeasible_late_restart)) {
+    HypernodeWeight current_max_bin = bin_packing::currentMaxBin(current_hypergraph, current_k);
+    double current_imb = static_cast<double>(current_max_bin)
+                         / ceil(static_cast<double>(original_hypergraph.totalWeight()) / original_context.partition.k);
     current_context.initial_partitioning.bin_epsilon = calculateEpsilonFromBinImbalance(current_imb, current_k, original_context);
     current_context.initial_partitioning.current_max_bin = current_max_bin;
+  }
+
   ASSERT(original_context.partition.use_individual_part_weights ||
          current_context.partition.epsilon > 0.0, "start partition already too imbalanced");
 
@@ -209,6 +206,8 @@ static inline void partition(Hypergraph& input_hypergraph,
                                 (original_context.partition.k - 1));
 
   const HypernodeWeight lmax = original_context.partition.max_part_weights[0];
+  const bool restart = original_context.initial_partitioning.infeasible_early_restart
+                       || original_context.initial_partitioning.infeasible_late_restart;
   int bisection_counter = 0;
 
   if ((original_context.type == ContextType::main && original_context.partition.verbose_output) ||
@@ -333,9 +332,8 @@ static inline void partition(Hypergraph& input_hypergraph,
 
 
           // TODO rather ugly (?)
-          if (current_hypergraph.initialNumNodes() > 0 && k > 2) {
-            ASSERT(!(original_context.partition.use_individual_part_weights
-                   && original_context.initial_partitioning.infeasible_early_restart),
+          if (current_hypergraph.initialNumNodes() > 0 && restart && k > 2) {
+            ASSERT(!original_context.partition.use_individual_part_weights,
                    "Individual part weights are not allowed for bin packing.");
             bool feasible = current_context.initial_partitioning.current_max_bin <= lmax;
             hypergraph_stack.back().isFeasible = feasible;

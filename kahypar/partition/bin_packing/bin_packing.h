@@ -222,9 +222,8 @@ namespace bin_packing {
   template<typename S>
   using BalanceSegTree = ds::ParametrizedSegmentTree<std::pair<S, S>, S, S, balance_max<S>, balance_base<S>>;
 
-  static inline size_t get_max_part_idx(const Context& context, const std::vector<HypernodeWeight>& part_weight,
-                      HypernodeWeight next_element, bool skip_full_parts) {
-    HypernodeWeight max_bin_weight = floor(context.initial_partitioning.current_max_bin * (1.0 + context.initial_partitioning.bin_epsilon));
+  static inline size_t getMaxPartIndex(const Context& context, const std::vector<HypernodeWeight>& part_weight,
+                      HypernodeWeight next_element, bool skip_full_parts, HypernodeWeight max_bin_weight) {
     const std::vector<HypernodeWeight>& upper_weight = context.initial_partitioning.upper_allowed_partition_weight;
     const std::vector<PartitionID>& num_bins_per_part = context.initial_partitioning.num_bins_per_partition;
     ASSERT(part_weight.size() == upper_weight.size() && part_weight.size() == num_bins_per_part.size());
@@ -293,7 +292,7 @@ namespace bin_packing {
     for (i = 0; i < nodes.size(); ++i) {
       ASSERT(upper_weight.size() == packing_result.second.size());
 
-      size_t max_part_idx = get_max_part_idx(context, packing_result.second, weights[i].first, true);
+      size_t max_part_idx = getMaxPartIndex(context, packing_result.second, weights[i].first, true, max_bin_weight);
       HypernodeWeight remaining = std::max(0, std::min(packing_result.second[max_part_idx] - upper_weight[max_part_idx] + weights[i].second,
                     weights[i].second));
 
@@ -324,7 +323,7 @@ namespace bin_packing {
     }
 
     // calculate optimization for allowed weights
-    size_t max_part_idx = get_max_part_idx(context, packing_result.second, 0, false);
+    size_t max_part_idx = getMaxPartIndex(context, packing_result.second, 0, false, max_bin_weight);
     HypernodeWeight range_weight = packing_result.second[max_part_idx];
     HypernodeWeight imbalance = 0;
     HypernodeWeight optimized = 0;

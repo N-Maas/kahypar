@@ -170,7 +170,7 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
     partition(hypergraph, *coarsener, *refiner, context, packing_context.initial_partitioning.upper_allowed_partition_weight);
     currLevel = bin_packing::increaseBalancingRestrictions(currLevel);
   } while (repeat && currLevel != BalancingLevel::STOP
-           && metrics::resultingMaxBin(hypergraph, packing_context) > maxFeasibleBin);
+           && bin_packing::resultingMaxBin(hypergraph, packing_context) > maxFeasibleBin);
 }
 }  // namespace multilevel
 }  // namespace kahypar
