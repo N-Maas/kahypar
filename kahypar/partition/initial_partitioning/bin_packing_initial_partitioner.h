@@ -29,7 +29,7 @@ namespace kahypar {
 using bin_packing::IBinPacker;
 
 class BinPackingInitialPartitioner : public IInitialPartitioner,
-                                 private InitialPartitionerBase<BinPackingInitialPartitioner>{
+                                     private InitialPartitionerBase<BinPackingInitialPartitioner> {
   using Base = InitialPartitionerBase<BinPackingInitialPartitioner>;
   friend Base;
 
@@ -86,7 +86,9 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
     Base::resetPartitioning();
     initializeNodes();
 
-    std::vector<PartitionID> partitions = _bin_packer->twoLevelPacking(_hg, _context, _descending_nodes);
+    PartitionID rb_range_k = _context.partition.rb_upper_k - _context.partition.rb_lower_k + 1;
+    HypernodeWeight allowed_part_weight = (1.0 + _context.partition.epsilon) * (static_cast<double>(_hg.totalWeight()) / rb_range_k);
+    std::vector<PartitionID> partitions = _bin_packer->twoLevelPacking(_hg, _context, _descending_nodes, allowed_part_weight);
 
     for (size_t i = 0; i < _descending_nodes.size(); ++i) {
       HypernodeID hn = _descending_nodes[i];

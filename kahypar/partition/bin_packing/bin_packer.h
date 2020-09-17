@@ -60,8 +60,9 @@ class IBinPacker {
     prepackingImpl(hg, context, level);
   }
 
-  std::vector<PartitionID> twoLevelPacking(const Hypergraph& hg, const Context& context, const std::vector<HypernodeID>& nodes) {
-    return twoLevelPackingImpl(hg, context, nodes);
+  std::vector<PartitionID> twoLevelPacking(const Hypergraph& hg, const Context& context, const std::vector<HypernodeID>& nodes,
+                                           const HypernodeWeight max_bin_weight) {
+    return twoLevelPackingImpl(hg, context, nodes, max_bin_weight);
   }
 
   virtual ~IBinPacker() = default;
@@ -71,7 +72,8 @@ class IBinPacker {
 
  private:
   virtual void prepackingImpl(Hypergraph& hg, Context& context, const BalancingLevel level) = 0;
-  virtual std::vector<PartitionID> twoLevelPackingImpl(const Hypergraph& hg, const Context& context, const std::vector<HypernodeID>& nodes) = 0;
+  virtual std::vector<PartitionID> twoLevelPackingImpl(const Hypergraph& hg, const Context& context, const std::vector<HypernodeID>& nodes,
+                                                       const HypernodeWeight max_bin_weight) = 0;
 };
 
 template< class BPAlgorithm = WorstFit >
@@ -106,11 +108,11 @@ class BinPacker final : public IBinPacker {
     }
   }
 
-  std::vector<PartitionID> twoLevelPackingImpl(const Hypergraph& hg, const Context& context, const std::vector<HypernodeID>& nodes) override {
+  std::vector<PartitionID> twoLevelPackingImpl(const Hypergraph& hg, const Context& context, const std::vector<HypernodeID>& nodes,
+                                               const HypernodeWeight max_bin_weight) override {
     ASSERT(static_cast<size_t>(context.partition.k) == context.initial_partitioning.upper_allowed_partition_weight.size());
 
     PartitionID rb_range_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
-    HypernodeWeight max_bin_weight = floor(context.initial_partitioning.current_max_bin * (1 + context.initial_partitioning.bin_epsilon));
     std::vector<PartitionID> partitions(nodes.size(), -1);
     TwoLevelPacker<BPAlgorithm> packer(rb_range_k, max_bin_weight);
 
@@ -128,7 +130,7 @@ class BinPacker final : public IBinPacker {
     }
 
     PartitionMapping packing_result = packer.applySecondLevel(context.initial_partitioning.upper_allowed_partition_weight,
-                                                                context.initial_partitioning.num_bins_per_partition).first;
+                                                              context.initial_partitioning.num_bins_per_partition).first;
     packing_result.applyMapping(partitions);
 
     ASSERT(nodes.size() == partitions.size());

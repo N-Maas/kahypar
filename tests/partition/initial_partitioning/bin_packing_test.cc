@@ -80,7 +80,7 @@ class BinPackingTest : public Test {
       }
     }
     std::vector<HypernodeID> nodes = bin_packing::extractNodesWithDescendingWeight(hypergraph);
-    auto result = packer.twoLevelPacking(hypergraph, c, nodes);
+    auto result = packer.twoLevelPacking(hypergraph, c, nodes, max_bin_weight);
 
     for (size_t i = 0; i < partitions.size(); ++i) {
       if (partitions[i] != -1) {
