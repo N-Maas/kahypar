@@ -97,7 +97,7 @@ class BinPacker final : public IBinPacker {
         HypernodeWeight& border = context.initial_partitioning.upper_allowed_partition_weight[i];
         HypernodeWeight upper = context.initial_partitioning.num_bins_per_partition[i] * max_bin_weight;
 
-        // TODO ugly magic numbers
+        // TODO(maas) ugly magic numbers - but no better solution known?
         if (upper - border < (border - lower) / 10) {
           border = (lower + upper) / 2;
           context.partition.epsilon = static_cast<double>(border) / static_cast<double>(lower) - 1.0;

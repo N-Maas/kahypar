@@ -154,7 +154,7 @@ static inline void partition(Hypergraph& hg,
   init_hg.resetCommunities();
   Context init_context = createContext(init_hg, context);
 
-  // TODO: this is a bad hack
+  // TODO(maas): this is a bad hack
   if (adjusted_upper_weight.size() > 0) {
     ASSERT(init_context.initial_partitioning.upper_allowed_partition_weight.size() == adjusted_upper_weight.size(),
            "Different partition sizes: " << V(init_context.initial_partitioning.upper_allowed_partition_weight.size())

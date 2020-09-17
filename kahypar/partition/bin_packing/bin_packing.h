@@ -260,7 +260,7 @@ namespace bin_packing {
          && num_bins_per_part.size() == static_cast<size_t>(context.partition.k));
     ASSERT(std::accumulate(num_bins_per_part.cbegin(), num_bins_per_part.cend(), 0) >= rb_range_k);
 
-    // initialization: exctract descending nodes, calculate weight sum table and initialize segment tree
+    // initialization: exctract descending nodes, calculate suffix sums of weights and initialize segment tree
     PartitionID max_k = *std::max_element(num_bins_per_part.cbegin(), num_bins_per_part.cend());
     TwoLevelPacker<BPAlgorithm> packer(rb_range_k, max_bin_weight);
     std::vector<HypernodeID> nodes = extractNodesWithDescendingWeight(hg);
@@ -294,7 +294,7 @@ namespace bin_packing {
 
       size_t max_part_idx = getMaxPartIndex(context, packing_result.second, weights[i].first, true, max_bin_weight);
       HypernodeWeight remaining = std::max(0, std::min(packing_result.second[max_part_idx] - upper_weight[max_part_idx] + weights[i].second,
-                    weights[i].second));
+                                  weights[i].second));
 
       // find subrange of specified weight
       size_t j = weights.crend() - std::lower_bound(weights.crbegin(), weights.crend() - i, std::make_pair(0, remaining),
@@ -306,7 +306,7 @@ namespace bin_packing {
       if (j > i) {
         HypernodeWeight imbalance = seg_tree.query(i, j - 1) + weights[j].second;
         HypernodeWeight partWeight = (j == nodes.size()) ? packing_result.second[max_part_idx] + weights[i].second : upper_weight[max_part_idx]
-                       * max_k / num_bins_per_part[max_part_idx];
+                                     * max_k / num_bins_per_part[max_part_idx];
         if (partWeight + imbalance <= max_k * max_bin_weight) {
           break;
         }
@@ -322,6 +322,7 @@ namespace bin_packing {
       hg.setFixedVertex(nodes[i], partitions[i]);
     }
 
+    // TODO(maas) - this part makes many things ugly, with questionable benefit
     // calculate optimization for allowed weights
     size_t max_part_idx = getMaxPartIndex(context, packing_result.second, 0, false, max_bin_weight);
     HypernodeWeight range_weight = packing_result.second[max_part_idx];

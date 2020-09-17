@@ -55,7 +55,7 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
     }
 
     // shuffle nodes with equal weight
-    // TODO: more randomness
+    // TODO(maas): more randomness, e.g. only partly preserve order?
     size_t i = 0;
     for (size_t j = 1; j < _descending_nodes.size(); ++j) {
       if (_hg.nodeWeight(_descending_nodes[i]) != _hg.nodeWeight(_descending_nodes[j])) {

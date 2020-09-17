@@ -592,7 +592,6 @@ void checkDirectKwayMode(RefinementAlgorithm& algo, Objective& objective) {
   }
 }
 
-// TODO balancing, e_type
 static inline void sanityCheck(const Hypergraph& hypergraph, Context& context) {
   switch (context.partition.mode) {
     case Mode::recursive_bisection:

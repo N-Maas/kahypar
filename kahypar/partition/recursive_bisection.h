@@ -108,7 +108,7 @@ static inline Context createCurrentBisectionContext(const Context& original_cont
   current_context.partition.epsilon = calculateRelaxedEpsilon(original_hypergraph.totalWeight(),
                                                               current_hypergraph.totalWeight(),
                                                               current_k, original_context);
-    // TODO this could be cached
+  // TODO(maas) in theory, this could be cached
   if (current_k > 2 && (original_context.initial_partitioning.infeasible_early_restart
       || original_context.initial_partitioning.infeasible_late_restart)) {
     HypernodeWeight current_max_bin = bin_packing::currentMaxBin(current_hypergraph, current_k);
@@ -331,7 +331,6 @@ static inline void partition(Hypergraph& input_hypergraph,
           }
 
 
-          // TODO rather ugly (?)
           if (current_hypergraph.initialNumNodes() > 0 && restart && k > 2) {
             ASSERT(!original_context.partition.use_individual_part_weights,
                    "Individual part weights are not allowed for bin packing.");
