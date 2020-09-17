@@ -381,7 +381,7 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
         kahypar::initialPartitioningAlgorithmFromString(ip_algo);
     }),
     "Algorithm used to create initial partition: pool ")
-    ("i-bin-packing-algorithm",
+    ("i-bp-algorithm",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& ip_bp_algo) {
       context.initial_partitioning.bp_algo =
@@ -391,13 +391,13 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     " - worst_fit\n"
     " - first_fit"
     "(default: worst_fit)")
-    ("i-infeasible-early-restart",
+    ("i-bp-early-restart",
     po::value<bool>(&context.initial_partitioning.infeasible_early_restart)->value_name("<bool>"),
-    "Enable early restart of current bisection if infeasible"
+    "Enable early restart with prepacking of current bisection if infeasible"
     "(default: false)")
-    ("i-infeasible-late-restart",
+    ("i-bp-late-restart",
     po::value<bool>(&context.initial_partitioning.infeasible_late_restart)->value_name("<bool>"),
-    "Enable late restart of bisections, i.e. if the resulting partition is imbalanced"
+    "Enable late restart with prepacking of bisections, i.e. if the resulting partition is imbalanced"
     "(default: false)")
     ("i-runs",
     po::value<uint32_t>(&context.initial_partitioning.nruns)->value_name("<uint32_t>"),
