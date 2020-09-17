@@ -152,7 +152,7 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
     if (currLevel != level) {
       hypergraph.reset();
 
-      // TODO remove?
+      // TODO(maas) remove?
       std::string key("restarts_early_level_");
       key += std::to_string(static_cast<uint8_t>(currLevel));
       stats.add(StatTag::InitialPartitioning, key, 1.0);

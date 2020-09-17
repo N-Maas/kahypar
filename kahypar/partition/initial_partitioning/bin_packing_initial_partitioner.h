@@ -37,7 +37,9 @@ class BinPackingInitialPartitioner : public IInitialPartitioner,
   BinPackingInitialPartitioner(Hypergraph& hypergraph, Context& context) :
     Base(hypergraph, context),
     _descending_nodes(),
-    _bin_packer(bin_packing::createBinPacker(context.initial_partitioning.bp_algo)) { }
+    _bin_packer(bin_packing::createBinPacker(context.initial_partitioning.bp_algo)) { 
+      ASSERT(_bin_packer.get() != nullptr, "bin packing algorithm not found");
+    }
 
   ~BinPackingInitialPartitioner() override = default;
 
