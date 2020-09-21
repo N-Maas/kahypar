@@ -60,9 +60,7 @@ static inline void serialize(const Context& context, const Hypergraph& hypergrap
         << " seed=" << context.partition.seed
         << " num_v_cycles=" << context.partition.global_search_iterations
         << " he_size_threshold=" << context.partition.hyperedge_size_threshold
-        << " total_graph_weight=" << hypergraph.totalWeight()
-        << " use_max_imbalance_in_rb=" << std::boolalpha
-        << context.partition.use_max_imbalance_in_rb;
+        << " total_graph_weight=" << hypergraph.totalWeight();
     if (context.partition.use_individual_part_weights) {
       for (PartitionID i = 0; i != hypergraph.k(); ++i) {
         oss << " L_opt" << i << "=" << context.partition.perfect_balance_part_weights[i];
