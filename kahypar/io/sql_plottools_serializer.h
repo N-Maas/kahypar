@@ -224,6 +224,113 @@ static inline void serialize(const Context& context, const Hypergraph& hypergrap
     for (PartitionID i = 0; i != hypergraph.k(); ++i) {
       oss << " partWeight" << i << "=" << hypergraph.partWeight(i);
     }
+  } else {
+    oss << " L_max" << "=" << context.partition.max_part_weights[0];
+  }
+
+  oss << " pre_enable_deduplication=" << std::boolalpha
+      << context.preprocessing.enable_deduplication
+      << " pre_enable_min_hash_sparsifier=" << std::boolalpha
+      << context.preprocessing.enable_min_hash_sparsifier
+      << " pre_min_hash_max_hyperedge_size="
+      << context.preprocessing.min_hash_sparsifier.max_hyperedge_size
+      << " pre_min_hash_max_cluster_size="
+      << context.preprocessing.min_hash_sparsifier.max_cluster_size
+      << " pre_min_hash_min_cluster_size="
+      << context.preprocessing.min_hash_sparsifier.min_cluster_size
+      << " pre_min_hash_num_hash_functions="
+      << context.preprocessing.min_hash_sparsifier.num_hash_functions
+      << " pre_min_hash_combined_num_hash_functions="
+      << context.preprocessing.min_hash_sparsifier.combined_num_hash_functions
+      << " pre_min_sparsifier_is_active="
+      << context.preprocessing.min_hash_sparsifier.is_active
+      << " pre_min_sparsifier_activation_median_he_size="
+      << context.preprocessing.min_hash_sparsifier.min_median_he_size
+      << " enable_community_detection=" << std::boolalpha
+      << context.preprocessing.enable_community_detection
+      << " enable_louvain_in_initial_partitioning=" << std::boolalpha
+      << context.preprocessing.community_detection.enable_in_initial_partitioning
+      << " max_louvain_pass_iterations="
+      << context.preprocessing.community_detection.max_pass_iterations
+      << " min_louvain_eps_improvement="
+      << context.preprocessing.community_detection.min_eps_improvement
+      << " louvain_edge_weight=" << context.preprocessing.community_detection.edge_weight
+      << " reuse_community_structure=" << std::boolalpha
+      << context.preprocessing.community_detection.reuse_communities
+      << " coarsening_algo=" << context.coarsening.algorithm
+      << " coarsening_max_allowed_weight_multiplier="
+      << context.coarsening.max_allowed_weight_multiplier
+      << " coarsening_contraction_limit_multiplier="
+      << context.coarsening.contraction_limit_multiplier
+      << " coarsening_hypernode_weight_fraction=" << context.coarsening.hypernode_weight_fraction
+      << " coarsening_max_allowed_node_weight=" << context.coarsening.max_allowed_node_weight
+      << " coarsening_contraction_limit=" << context.coarsening.contraction_limit
+      << " coarsening_rating_function=" << context.coarsening.rating.rating_function
+      << " coarsening_rating_use_communities="
+      << context.coarsening.rating.community_policy
+      << " coarsening_rating_heavy_node_penalty="
+      << context.coarsening.rating.heavy_node_penalty_policy
+      << " coarsening_rating_acceptance_policy="
+      << context.coarsening.rating.acceptance_policy
+      << " coarsening_rating_fixed_vertex_acceptance_policy="
+      << context.coarsening.rating.fixed_vertex_acceptance_policy
+      << " IP_mode=" << context.initial_partitioning.mode
+      << " IP_technique=" << context.initial_partitioning.technique
+      << " IP_algorithm=" << context.initial_partitioning.algo
+      << " IP_pool_type=" << context.initial_partitioning.pool_type
+      << " IP_num_runs=" << context.initial_partitioning.nruns
+      << " IP_bin_packing_algo=" << context.initial_partitioning.bp_algo
+      << " IP_infeasible_early_restart=" << context.initial_partitioning.infeasible_early_restart
+      << " IP_infeasible_late_restart=" << context.initial_partitioning.infeasible_late_restart
+      << " IP_coarsening_algo=" << context.initial_partitioning.coarsening.algorithm
+      << " IP_coarsening_max_allowed_weight_multiplier="
+      << context.initial_partitioning.coarsening.max_allowed_weight_multiplier
+      << " IP_coarsening_contraction_limit_multiplier="
+      << context.initial_partitioning.coarsening.contraction_limit_multiplier
+      << " IP_coarsening_rating_function="
+      << context.initial_partitioning.coarsening.rating.rating_function
+      << " IP_coarsening_rating_use_communities="
+      << context.initial_partitioning.coarsening.rating.community_policy
+      << " IP_coarsening_rating_heavy_node_penalty="
+      << context.initial_partitioning.coarsening.rating.heavy_node_penalty_policy
+      << " IP_coarsening_rating_acceptance_policy="
+      << context.initial_partitioning.coarsening.rating.acceptance_policy
+      << " IP_coarsening_rating_fixed_vertex_acceptance_policy="
+      << context.initial_partitioning.coarsening.rating.fixed_vertex_acceptance_policy
+      << " IP_local_search_algorithm="
+      << context.initial_partitioning.local_search.algorithm
+      << " IP_local_search_iterations_per_level="
+      << context.initial_partitioning.local_search.iterations_per_level;
+  if (context.initial_partitioning.local_search.algorithm == RefinementAlgorithm::twoway_fm ||
+      context.initial_partitioning.local_search.algorithm == RefinementAlgorithm::kway_fm ||
+      context.initial_partitioning.local_search.algorithm == RefinementAlgorithm::kway_fm_km1) {
+    oss << " IP_local_search_fm_stopping_rule="
+        << context.initial_partitioning.local_search.fm.stopping_rule
+        << " IP_local_search_fm_max_number_of_fruitless_moves="
+        << context.initial_partitioning.local_search.fm.max_number_of_fruitless_moves
+        << " IP_local_search_fm_adaptive_stopping_alpha="
+        << context.initial_partitioning.local_search.fm.adaptive_stopping_alpha;
+  }
+  oss << " local_search_algorithm=" << context.local_search.algorithm
+      << " local_search_iterations_per_level=" << context.local_search.iterations_per_level;
+  if (context.local_search.algorithm == RefinementAlgorithm::twoway_fm ||
+      context.local_search.algorithm == RefinementAlgorithm::kway_fm ||
+      context.local_search.algorithm == RefinementAlgorithm::kway_fm_km1) {
+    oss << " local_search_fm_stopping_rule=" << context.local_search.fm.stopping_rule
+        << " local_search_fm_max_number_of_fruitless_moves="
+        << context.local_search.fm.max_number_of_fruitless_moves
+        << " local_search_fm_adaptive_stopping_alpha="
+        << context.local_search.fm.adaptive_stopping_alpha;
+  }
+  oss << " iteration=" << iteration;
+  for (PartitionID i = 0; i != hypergraph.k(); ++i) {
+    oss << " partSize" << i << "=" << hypergraph.partSize(i);
+  }
+  for (PartitionID i = 0; i != hypergraph.k(); ++i) {
+    oss << " partWeight" << i << "=" << hypergraph.partWeight(i);
+  }
+
+  if (!interrupted) {
     oss << " cut=" << metrics::hyperedgeCut(hypergraph)
         << " soed=" << metrics::soed(hypergraph)
         << " km1=" << metrics::km1(hypergraph)
