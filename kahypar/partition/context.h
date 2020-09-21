@@ -470,7 +470,7 @@ class Context {
         partition.max_part_weights.push_back(partition.max_part_weights[0]);
       }
     }
-    if (partition.use_max_imbalance_in_rb && partition.mode == Mode::recursive_bisection) {
+    if (partition.use_max_imbalance_in_rb) {
       // Using the maximum allowed imbalance basically just boils down to
       // partitioning with individual block weights using the max part
       // weights as individual block weights.
@@ -499,17 +499,6 @@ class Context {
           initial_partitioning.perfect_balance_partition_weight[i]
           * (1.0 + partition.epsilon));
       }
-    }
-    if (partition.use_max_imbalance_in_rb &&
-        initial_partitioning.mode == Mode::recursive_bisection) {
-      // Using the maximum allowed imbalance basically just boils down to
-      // partitioning with individual block weights using the max part
-      // weights as individual block weights.
-      partition.use_individual_part_weights = true;
-      initial_partitioning.perfect_balance_partition_weight =
-        partition.perfect_balance_part_weights;
-      initial_partitioning.upper_allowed_partition_weight =
-        initial_partitioning.perfect_balance_partition_weight;
     }
   }
 };
