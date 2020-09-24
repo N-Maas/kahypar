@@ -1602,6 +1602,10 @@ class GenericHypergraph {
     return _fixed_vertices ? _fixed_vertices->size() : 0;
   }
 
+  HypernodeID currentNumFreeVertices() const {
+    return currentNumNodes() - numFixedVertices();
+  }
+
   bool containsFixedVertices() const {
     return numFixedVertices() > 0;
   }
