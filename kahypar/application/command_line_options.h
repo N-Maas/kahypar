@@ -396,6 +396,10 @@ po::options_description createInitialPartitioningOptionsDescription(Context& con
     po::value<bool>(&context.initial_partitioning.enable_late_restart)->value_name("<bool>"),
     "Enable late restart with prepacking of bisections, i.e. if the resulting partition is imbalanced"
     "(default: false)")
+    ("i-bp-relaxation",
+    po::value<bool>(&context.initial_partitioning.enable_relaxation)->value_name("<bool>"),
+    "Enable relaxation of upper part weight in bin packing algorithm"
+    "(default: true)")
     ("i-runs",
     po::value<uint32_t>(&context.initial_partitioning.nruns)->value_name("<uint32_t>"),
     "# initial partition trials");

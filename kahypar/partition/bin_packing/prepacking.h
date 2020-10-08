@@ -145,6 +145,10 @@ static inline void calculateExactPrepacking(Hypergraph& hg, Context& context, co
   //
   // The ugly aspect here is that it also complicates code at other positions, because the changed
   // weights need to be propagated to the initial partitioning algorithm (see initial_partition::partition).
+  if (!context.initial_partitioning.enable_relaxation) {
+    return;
+  }
+
   const size_t max_part_idx = getMaxPartIndex(context, packing_result.second, 0, false, max_bin_weight);
   HypernodeWeight range_weight = packing_result.second[max_part_idx];
   HypernodeWeight imbalance = 0;
