@@ -192,6 +192,8 @@ TEST(KaHyPar, SupportsIndividualBlockWeightsViaInterface) {
   kahypar_configure_context_from_file(context, "../../../config/km1_direct_kway_sea18.ini");
 
   reinterpret_cast<kahypar::Context*>(context)->preprocessing.enable_community_detection = false;
+  reinterpret_cast<kahypar::Context*>(context)->initial_partitioning.enable_early_restart = false;
+  reinterpret_cast<kahypar::Context*>(context)->initial_partitioning.enable_late_restart = false;
 
   HypernodeID num_hypernodes = 7;
   HyperedgeID num_hyperedges = 4;
