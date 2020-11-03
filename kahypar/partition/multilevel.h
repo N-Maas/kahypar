@@ -154,6 +154,12 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
     std::unique_ptr<IBinPacker> bin_packer = bin_packing::createBinPacker(context.initial_partitioning.bp_algo, hypergraph, prepacking_context);
     bin_packer->prepacking(current_level);
 
+    if (current_level == BalancingLevel::guaranteed) {
+      PartitionID remaining_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
+
+      std::cout << "PREPACKING_RESULT k=" << remaining_k << " size=" << hypergraph.numFixedVertices() << std::endl;
+    }
+
     std::unique_ptr<ICoarsener> coarsener(
       CoarsenerFactory::getInstance().createObject(context.coarsening.algorithm, hypergraph, context, hypergraph.weightOfHeaviestNode()));
     std::unique_ptr<IRefiner> refiner(RefinerFactory::getInstance().createObject(context.local_search.algorithm, hypergraph, context));
