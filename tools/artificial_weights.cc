@@ -53,6 +53,16 @@ HypernodeWeight uniformWeight(std::mt19937& rand, HypernodeID num_nodes) {
   }
 }
 
+std::vector<double> powerLawDistribution(HypernodeID num_nodes) {
+    std::vector<double> probabilities;
+    probabilities.push_back(0);
+    HypernodeWeight max_heavy_weight = ceil(3.0 * ECPECTED_RELATIVE_WEIGHT / (1 - ECPECTED_RELATIVE_WEIGHT) * num_nodes / EXPECTED_NUM_HEAVY_NODES);
+    for (int i = 1; i < max_heavy_weight; ++i) {
+        probabilities.push_back(1.0 / (std::pow(static_cast<double>(i), 2.5)));
+    }
+    return std::move(probabilities);
+}
+
 void appendWeightsToHgr(const std::string& hgr_filename, const std::string& out_filename, std::vector<kahypar::HypernodeWeight>& weights) {
   std::random_shuffle(weights.begin(), weights.end());
   std::ifstream input(hgr_filename);
@@ -93,8 +103,11 @@ int main(int argc, char *argv[]) {
   HypernodeID num_nodes = parseNumNodes(input_file);
   std::vector<HyperedgeWeight> weights;
   weights.reserve(num_nodes);
+  auto prob_vec = powerLawDistribution(num_nodes);
+  std::discrete_distribution<HypernodeWeight> distribution(prob_vec.cbegin(), prob_vec.cend());
   for (HypernodeID i = 0; i < num_nodes; ++i) {
-      weights.push_back(uniformWeight(rand, num_nodes));
+    weights.push_back(distribution(rand));
+    // weights.push_back(uniformWeight(rand, num_nodes));
   }
 
   appendWeightsToHgr(input_file, output_file, weights);
