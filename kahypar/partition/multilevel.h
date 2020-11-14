@@ -157,7 +157,8 @@ static inline void partitionRepeatedOnInfeasible(Hypergraph& hypergraph,
     if (current_level == BalancingLevel::guaranteed) {
       PartitionID remaining_k = context.partition.rb_upper_k - context.partition.rb_lower_k + 1;
 
-      std::cout << "PREPACKING_RESULT k=" << remaining_k << " size=" << hypergraph.numFixedVertices() << std::endl;
+      std::cout << "PREPACKING remaining_k=" << remaining_k << " num_fixed=" << hypergraph.numFixedVertices()
+                << " hg_size=" << hypergraph.currentNumNodes() << std::endl;
     }
 
     std::unique_ptr<ICoarsener> coarsener(
