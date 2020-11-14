@@ -28,8 +28,8 @@
 
 using namespace kahypar;
 
-static const double EXPECTED_NUM_HEAVY_NODES = 40;
-static const double ECPECTED_RELATIVE_WEIGHT = 0.2;
+static const double EXPECTED_NUM_HEAVY_NODES = 120;
+static const double ECPECTED_RELATIVE_WEIGHT = 0.5;
 
 HypernodeID parseNumNodes(const std::string& hgr_filename) {
   std::ifstream file(hgr_filename);
@@ -103,11 +103,11 @@ int main(int argc, char *argv[]) {
   HypernodeID num_nodes = parseNumNodes(input_file);
   std::vector<HyperedgeWeight> weights;
   weights.reserve(num_nodes);
-  auto prob_vec = powerLawDistribution(num_nodes);
-  std::discrete_distribution<HypernodeWeight> distribution(prob_vec.cbegin(), prob_vec.cend());
+  // auto prob_vec = powerLawDistribution(num_nodes);
+  // std::discrete_distribution<HypernodeWeight> distribution(prob_vec.cbegin(), prob_vec.cend());
   for (HypernodeID i = 0; i < num_nodes; ++i) {
-    weights.push_back(distribution(rand));
-    // weights.push_back(uniformWeight(rand, num_nodes));
+    // weights.push_back(distribution(rand));
+    weights.push_back(uniformWeight(rand, num_nodes));
   }
 
   appendWeightsToHgr(input_file, output_file, weights);
