@@ -262,6 +262,7 @@ struct InitialPartitioningParameters {
   // Is used to get a tighter balance constraint for initial partitioning.
   // Before initial partitioning epsilon is set to init_alpha*epsilon.
   double init_alpha = 1;
+  bool use_init_alpha = true;
   // If pool initial partitioner is used, the first 12 bits of this number decides
   // which algorithms are used.
   unsigned int pool_type = 1975;

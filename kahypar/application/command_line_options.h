@@ -566,6 +566,8 @@ po::options_description createGenericOptionsDescription(Context& context,
     "Verbose main partitioning output")
     ("vip", po::value<bool>(&context.initial_partitioning.verbose_output)->value_name("<bool>"),
     "Verbose initial partitioning output")
+    ("init-alpha", po::value<bool>(&context.initial_partitioning.use_init_alpha)->value_name("<bool>"),
+    "Use ad-hoc balancing strategy.")
     ("quiet,q", po::value<bool>(&context.partition.quiet_mode)->value_name("<bool>"),
     "Quiet Mode: Completely suppress console output")
     ("time-limit", po::value<int>(&context.partition.time_limit)->value_name("<int>"),

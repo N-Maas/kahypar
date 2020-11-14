@@ -211,7 +211,7 @@ static inline void partition(Hypergraph& hg, const Context& context) {
       best_imbalance = imbalance;
     }
     init_alpha -= 0.1;
-  } while (metrics::imbalance(*extracted_init_hypergraph.first, context)
+  } while (context.initial_partitioning.use_init_alpha && metrics::imbalance(*extracted_init_hypergraph.first, context)
            > context.partition.epsilon && init_alpha > 0.0);
 
   ASSERT([&]() {
