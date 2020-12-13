@@ -263,6 +263,8 @@ static inline void partition(Hypergraph& input_hypergraph,
               std::string key("restarts_late_level_");
               key += std::to_string(static_cast<uint8_t>(hypergraph_stack.back().level));
               original_context.stats.add(StatTag::InitialPartitioning, key, 1.0);
+
+              std::cout << "PREPACKING LATE RESTART DETECTED" << std::endl;
               break;
             }
           }
